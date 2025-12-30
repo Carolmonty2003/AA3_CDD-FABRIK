@@ -171,10 +171,14 @@ public class FABRIKIK : MonoBehaviour
         // Aplicamos las posiciones calculadas a los joints
         ApplyPositionsToJoints();
     }
-    
+
     /// <summary>
     /// Aplica las posiciones calculadas a los transforms de los joints
     /// y ajusta sus rotaciones para que apunten al siguiente joint
+    /// </summary>
+    /// <summary>
+    /// Aplica las posiciones calculadas a los transforms de los joints
+    /// y ajusta sus rotaciones para que los CILINDROS HIJOS apunten al siguiente joint
     /// </summary>
     void ApplyPositionsToJoints()
     {
@@ -182,27 +186,50 @@ public class FABRIKIK : MonoBehaviour
         {
             joints[i].position = positions[i];
         }
-        
-        // Ajustamos rotaciones para que cada joint apunte al siguiente
+
+        // Ajustamos rotaciones para que cada joint tenga su eje Y apuntando al siguiente
+        // (Los cilindros de Unity tienen su eje largo en Y)
         for (int i = 0; i < joints.Length - 1; i++)
         {
             Vector3 direction = positions[i + 1] - positions[i];
-            
+
             if (Vectors.SqrMagnitude(direction) > 1e-6f)
             {
-                // Usamos la función Up() como referencia
-                Quaternion rotation = Quaternions.LookRotationCustom(direction, Vectors.Up());
+                // Normalizar dirección
+                direction = Vectors.Normalize(direction);
+
+                // Construir rotación donde Y apunte en 'direction'
+                // Primero calculamos right (perpendicular a direction)
+                Vector3 right = Vectors.CrossProduct(Vectors.Up(), direction);
+
+                // Si direction es casi vertical, usar otro vector de referencia
+                if (Vectors.SqrMagnitude(right) < 1e-6f)
+                {
+                    right = Vectors.CrossProduct(Vectors.Forward(), direction);
+                }
+
+                right = Vectors.Normalize(right);
+
+                // Forward es perpendicular a ambos
+                Vector3 forward = Vectors.CrossProduct(direction, right);
+                forward = Vectors.Normalize(forward);
+
+                // Recalcular right para asegurar ortogonalidad perfecta
+                right = Vectors.CrossProduct(direction, forward);
+
+                // Crear rotación usando LookRotationCustom con forward como eje Z y direction como eje Y
+                Quaternion rotation = Quaternions.LookRotationCustom(forward, direction);
                 joints[i].rotation = rotation;
             }
         }
-        
+
         // El último joint mantiene la rotación del penúltimo
         if (joints.Length > 1)
         {
             joints[joints.Length - 1].rotation = joints[joints.Length - 2].rotation;
         }
     }
-    
+
     void OnDrawGizmos()
     {
         if (!drawGizmos || joints == null || joints.Length == 0)
