@@ -10,7 +10,7 @@ using UnityEngine.UI;
 /// </summary>
 public class IKDebugPanel : MonoBehaviour
 {
-    [Header("Referencias a los Solvers")]
+    /*[Header("Referencias a los Solvers")]
     public CCDIK ccdSolver;
     public FABRIKIK fabrikSolver;
     
@@ -151,5 +151,5 @@ public class IKDebugPanel : MonoBehaviour
     {
         if (fabrikSolver != null) fabrikSolver.isActive = false;
         if (ccdSolver != null) ccdSolver.isActive = true;
-    }
+    }*/
 }

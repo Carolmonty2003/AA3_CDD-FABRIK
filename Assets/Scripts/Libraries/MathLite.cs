@@ -67,4 +67,6 @@ public static class MathLite
         t = Clamp01(t);
         return a + (b - a) * t;
     }
+
+    public static float Exp(float x) => Mathf.Exp(x);
 }

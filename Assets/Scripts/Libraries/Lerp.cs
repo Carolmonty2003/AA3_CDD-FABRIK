@@ -79,4 +79,11 @@ public class Lerp : MonoBehaviour
         }
         else return Lerpp(a, b, t);
     }
+
+    public static Vector3 ExpSmooth(Vector3 current, Vector3 target, float smoothTime, float dt)
+    {
+        if (smoothTime <= 1e-6f) return target;
+        float t = 1f - MathLite.Exp(-dt / smoothTime);
+        return Lerpp(current, target, t);
+    }
 }

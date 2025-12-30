@@ -152,4 +152,12 @@ public static class Quaternions
         Quaternion qz = Roll(rollRad);
         return Multiply(Multiply(qy, qx), qz);
     }
+
+    public static Quaternion EulerDegToQuat(Vector3 eulerDeg)
+    {
+        float yaw = eulerDeg.y * MathLite.Deg2Rad;
+        float pitch = eulerDeg.x * MathLite.Deg2Rad;
+        float roll = eulerDeg.z * MathLite.Deg2Rad;
+        return YawPitchRoll(yaw, pitch, roll);
+    }
 }

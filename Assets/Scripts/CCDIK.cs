@@ -1,160 +1,107 @@
-using System;
 using UnityEngine;
 
-/// <summary>
-/// CCD (Cyclic Coordinate Descent) Solver
-/// NUEVA VERSIÓN: Usa rotación directa como FABRIK, no rotación delta
-/// </summary>
 public class CCDIK : MonoBehaviour
 {
-    [Header("Configuración de la cadena")]
-    [Tooltip("Array de joints en orden desde la base hasta el end-effector")]
+    [Header("Chain (root -> ... -> end)")]
+    [Tooltip("IMPORTANTE: ordena el array root -> ... -> endEffector (último).")]
     public Transform[] joints;
 
     [Header("Target")]
-    [Tooltip("Objetivo a alcanzar")]
     public Transform target;
 
-    [Header("Parámetros CCD")]
-    [Tooltip("Número máximo de iteraciones por frame")]
-    [Range(1, 50)]
-    public int maxIterations = 10;
+    [Header("CCD Params")]
+    [Min(1)] public int maxIterations = 10;
+    [Min(0f)] public float tolerance = 0.01f;
+    [Range(0f, 1f)] public float rotationStep = 1f; // 1 = giro completo, <1 = suaviza/limita
 
-    [Tooltip("Distancia mínima para considerar que alcanzó el target")]
-    [Range(0.001f, 1f)]
-    public float tolerance = 0.01f;
-
-    [Tooltip("Suavizado de la rotación (0-1)")]
-    [Range(0.01f, 1f)]
-    public float rotationSpeed = 0.3f;
-
-    [Header("Activación")]
-    public bool isActive = true;
-
-    [Header("Debug Info (Read Only)")]
+    [Header("Debug")]
     public int lastIterationsUsed;
-    public float lastDistanceToTarget;
-    public string algorithmName = "CCD";
-
-    [Header("Visualización")]
-    public bool drawGizmos = true;
-    public Color gizmoColor = Color.cyan;
-
-    // Cache del end-effector
-    private Transform endEffector;
-    private Quaternion[] targetRotations;
-
-    void Start()
-    {
-        if (joints == null || joints.Length < 2)
-        {
-            Debug.LogError("CCD: Necesitas al menos 2 joints");
-            enabled = false;
-            return;
-        }
-
-        endEffector = joints[joints.Length - 1];
-        targetRotations = new Quaternion[joints.Length];
-    }
+    public float currentDistance;
 
     void LateUpdate()
     {
-        if (!isActive || target == null || joints == null || joints.Length == 0)
-            return;
+        if (target == null) return;
+        if (joints == null || joints.Length < 2) return;
 
-        if (endEffector == null)
-            endEffector = joints[joints.Length - 1];
+        lastIterationsUsed = SolveCCD_Unparented(joints, target.position, maxIterations, tolerance, rotationStep);
 
-        SolveCCD();
+        Transform end = joints[joints.Length - 1];
+        currentDistance = Vectors.Distance(end.position, target.position);
     }
 
-    /// <summary>
-    /// Resuelve la cinemática inversa usando CCD
-    /// </summary>
-    void SolveCCD()
+    // CCD para joints NO parentados (cada Transform es independiente)
+    private static int SolveCCD_Unparented(
+        Transform[] joints,
+        Vector3 targetPos,
+        int maxIterations,
+        float tolerance,
+        float rotationStep
+    )
     {
-        lastIterationsUsed = 0;
+        maxIterations = MathLite.ClampInt(maxIterations, 1, 1000);
+        tolerance = MathLite.Max(0f, tolerance);
+        rotationStep = MathLite.Clamp01(rotationStep);
 
-        // Iteraciones principales de CCD
-        for (int iteration = 0; iteration < maxIterations; iteration++)
+        int endIndex = joints.Length - 1;
+        Transform end = joints[endIndex];
+
+        int used = 0;
+
+        for (int it = 0; it < maxIterations; ++it)
         {
-            lastIterationsUsed++;
+            used = it + 1;
 
-            // Calculamos distancia actual al target
-            lastDistanceToTarget = Vectors.Distance(endEffector.position, target.position);
+            float err = Vectors.Distance(end.position, targetPos);
+            if (err <= tolerance) break;
 
-            // Si estamos suficientemente cerca, terminamos
-            if (lastDistanceToTarget < tolerance)
-                break;
-
-            // CCD: Iteramos desde el penúltimo joint hacia la base
-            for (int i = joints.Length - 2; i >= 0; i--)
+            // Desde penúltimo hasta raíz (no rotamos el end como "articulación")
+            for (int i = endIndex - 1; i >= 0; --i)
             {
-                // Vector desde este joint al end-effector
-                Vector3 toEndEffector = endEffector.position - joints[i].position;
+                Transform joint = joints[i];
+                if (joint == null) continue;
 
-                // Vector desde este joint al target
-                Vector3 toTarget = target.position - joints[i].position;
+                Vector3 pivot = joint.position;
 
-                float distToEnd = Vectors.Magnitude(toEndEffector);
-                float distToTarget = Vectors.Magnitude(toTarget);
+                Vector3 toEnd = end.position - pivot;
+                Vector3 toTarget = targetPos - pivot;
 
-                // Si alguno es muy pequeño, saltamos
-                if (distToEnd < 0.0001f || distToTarget < 0.0001f)
-                    continue;
+                if (Vectors.SqrMagnitude(toEnd) < 1e-12f) continue;
+                if (Vectors.SqrMagnitude(toTarget) < 1e-12f) continue;
 
-                // Normalizamos para obtener direcciones
-                Vector3 dirToEnd = toEndEffector / distToEnd;
-                Vector3 dirToTarget = toTarget / distToTarget;
+                // Rotación necesaria para alinear joint->end con joint->target
+                Quaternion delta = Quaternions.FromToRotation(toEnd, toTarget);
 
-                // Calculamos la rotación OBJETIVO (como FABRIK)
-                // Esta es la rotación que haría que el joint apunte al target
-                Quaternion targetRotation = Quaternions.LookRotationCustom(dirToTarget, Vectors.Up());
+                // Limitar/suavizar el giro por paso (opcional)
+                if (rotationStep < 0.999f)
+                    delta = Lerp.SLerp(Quaternion.identity, delta, rotationStep);
 
-                // Aplicamos suavizado (lerp hacia la rotación objetivo)
-                joints[i].rotation = Lerp.SLerp(joints[i].rotation, targetRotation, rotationSpeed);
+                delta = Quaternions.Normalize(delta);
 
-                // Normalizamos para evitar errores
-                joints[i].rotation = Quaternions.Normalize(joints[i].rotation);
+                // 1) Rotar el joint actual (en mundo)
+                joint.rotation = Quaternions.Normalize(
+                    Quaternions.Multiply(delta, joint.rotation)
+                );
+
+                // 2) SIMULAR JERARQUÍA:
+                //    rotar posiciones + rotaciones de TODOS los joints posteriores alrededor del pivote
+                for (int j = i + 1; j <= endIndex; ++j)
+                {
+                    Transform child = joints[j];
+                    if (child == null) continue;
+
+                    // Rotar posición alrededor del pivote
+                    Vector3 r = child.position - pivot;
+                    Vector3 rRot = Quaternions.Rotate3D(r, delta);
+                    child.position = pivot + rRot;
+
+                    // Rotar orientación (como si fuese hijo)
+                    child.rotation = Quaternions.Normalize(
+                        Quaternions.Multiply(delta, child.rotation)
+                    );
+                }
             }
         }
-    }
 
-    void OnDrawGizmos()
-    {
-        if (!drawGizmos || joints == null || joints.Length == 0)
-            return;
-
-        Gizmos.color = gizmoColor;
-
-        // Dibujamos la cadena
-        for (int i = 0; i < joints.Length - 1; i++)
-        {
-            if (joints[i] != null && joints[i + 1] != null)
-            {
-                Gizmos.DrawLine(joints[i].position, joints[i + 1].position);
-                Gizmos.DrawWireSphere(joints[i].position, 0.05f);
-            }
-        }
-
-        // End-effector
-        if (endEffector != null)
-        {
-            Gizmos.DrawWireSphere(endEffector.position, 0.08f);
-        }
-
-        // Target
-        if (target != null)
-        {
-            Gizmos.color = Color.red;
-            Gizmos.DrawWireSphere(target.position, 0.1f);
-
-            // Línea de distancia
-            if (endEffector != null)
-            {
-                Gizmos.color = Color.yellow;
-                Gizmos.DrawLine(endEffector.position, target.position);
-            }
-        }
+        return used;
     }
 }

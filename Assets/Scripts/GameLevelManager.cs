@@ -123,7 +123,7 @@ public class PressableButton : MonoBehaviour
         // Animación visual de presionar
         transform.position = initialPosition - transform.up * pressDistance;
         
-        Debug.Log($"Botón {gameObject.name} presionado!");
+        //Debug.Log($"Botón {gameObject.name} presionado!");
     }
     
     void Release()
