@@ -234,7 +234,12 @@ public class FABRIKIK : MonoBehaviour
     {
         if (!drawGizmos || joints == null || joints.Length == 0)
             return;
-        
+
+        #if UNITY_EDITOR
+            if (UnityEditor.Selection.activeGameObject != gameObject)
+                return;
+        #endif
+
         Gizmos.color = gizmoColor;
         
         // Dibujamos la cadena
