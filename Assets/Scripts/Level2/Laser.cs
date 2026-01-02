@@ -12,7 +12,7 @@ public class Laser : MonoBehaviour
 
     [Header("Visual/Collision")]
     public Renderer[] renderersToToggle;
-    public Collider triggerCollider;
+    public Collider[] collidersToToggle;
 
     [Header("State (read only)")]
     public bool isOn = true;
@@ -22,18 +22,24 @@ public class Laser : MonoBehaviour
 
     void Reset()
     {
-        triggerCollider = GetComponent<Collider>();
-        triggerCollider.isTrigger = true;
         renderersToToggle = GetComponentsInChildren<Renderer>(true);
+        collidersToToggle = GetComponentsInChildren<Collider>(true);
     }
 
     void Awake()
     {
-        if (triggerCollider == null) triggerCollider = GetComponent<Collider>();
-        triggerCollider.isTrigger = true;
-
         if (renderersToToggle == null || renderersToToggle.Length == 0)
             renderersToToggle = GetComponentsInChildren<Renderer>(true);
+
+        if (collidersToToggle == null || collidersToToggle.Length == 0)
+            collidersToToggle = GetComponentsInChildren<Collider>(true);
+
+        // Asegura triggers (láser = detector, no pared sólida)
+        if (collidersToToggle != null)
+        {
+            for (int i = 0; i < collidersToToggle.Length; i++)
+                if (collidersToToggle[i] != null) collidersToToggle[i].isTrigger = true;
+        }
 
         SetOn(isOn);
     }
@@ -42,7 +48,11 @@ public class Laser : MonoBehaviour
     {
         isOn = on;
 
-        if (triggerCollider != null) triggerCollider.enabled = on;
+        if (collidersToToggle != null)
+        {
+            for (int i = 0; i < collidersToToggle.Length; i++)
+                if (collidersToToggle[i] != null) collidersToToggle[i].enabled = on;
+        }
 
         if (renderersToToggle != null)
         {

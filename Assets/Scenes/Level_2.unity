@@ -322,7 +322,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 2, y: 2.23, z: 2.05}
-  m_LocalScale: {x: 0.5, y: 7, z: 0.5}
+  m_LocalScale: {x: 0.2, y: 7, z: 0.2}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 417079264}
@@ -346,7 +346,7 @@ MonoBehaviour:
   endEffectorTag: EndEffector
   renderersToToggle:
   - {fileID: 155749955}
-  triggerCollider: {fileID: 155749954}
+  collidersToToggle: []
   isOn: 1
   debugLogs: 0
 --- !u!136 &155749954
@@ -511,13 +511,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 330585543}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 1, z: -10}
+  m_LocalRotation: {x: 0.21458794, y: -0.12743226, z: 0.028251048, w: 0.9679437}
+  m_LocalPosition: {x: 5.25, y: 9.22, z: -9.04}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 25, y: -15, z: 0}
 --- !u!114 &330585547
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -859,7 +859,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0.7071068, w: 0.7071068}
   m_LocalPosition: {x: 0, y: 6.23, z: 2.05}
-  m_LocalScale: {x: 0.5, y: 7, z: 0.5}
+  m_LocalScale: {x: 0.2, y: 7, z: 0.2}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 417079264}
@@ -883,7 +883,7 @@ MonoBehaviour:
   endEffectorTag: EndEffector
   renderersToToggle:
   - {fileID: 432000419}
-  triggerCollider: {fileID: 432000418}
+  collidersToToggle: []
   isOn: 1
   debugLogs: 0
 --- !u!136 &432000418
@@ -1086,7 +1086,7 @@ Transform:
   m_GameObject: {fileID: 481870068}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 4}
+  m_LocalPosition: {x: 0, y: 5.05, z: 4}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1122,7 +1122,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: -2, y: 2.23, z: 2.05}
-  m_LocalScale: {x: 0.5, y: 7, z: 0.5}
+  m_LocalScale: {x: 0.2, y: 7, z: 0.2}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 417079264}
@@ -1146,7 +1146,7 @@ MonoBehaviour:
   endEffectorTag: EndEffector
   renderersToToggle:
   - {fileID: 512254681}
-  triggerCollider: {fileID: 512254680}
+  collidersToToggle: []
   isOn: 1
   debugLogs: 0
 --- !u!136 &512254680
@@ -1363,7 +1363,7 @@ Transform:
   m_GameObject: {fileID: 528391689}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -4, y: 0, z: 0}
+  m_LocalPosition: {x: -4, y: 2.49, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1638,7 +1638,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 2.23, z: 2.05}
-  m_LocalScale: {x: 0.5, y: 7, z: 0.5}
+  m_LocalScale: {x: 0.2, y: 7, z: 0.2}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 417079264}
@@ -1662,7 +1662,7 @@ MonoBehaviour:
   endEffectorTag: EndEffector
   renderersToToggle:
   - {fileID: 729373138}
-  triggerCollider: {fileID: 729373137}
+  collidersToToggle: []
   isOn: 1
   debugLogs: 0
 --- !u!136 &729373137
@@ -1914,7 +1914,7 @@ Transform:
   m_GameObject: {fileID: 978763540}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 4, y: 0, z: 0}
+  m_LocalPosition: {x: 5.33, y: 2.88, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1950,7 +1950,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0.7071068, w: 0.7071068}
   m_LocalPosition: {x: 0, y: 4.23, z: 2.05}
-  m_LocalScale: {x: 0.5, y: 7, z: 0.5}
+  m_LocalScale: {x: 0.2, y: 7, z: 0.2}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 417079264}
@@ -1974,7 +1974,7 @@ MonoBehaviour:
   endEffectorTag: EndEffector
   renderersToToggle:
   - {fileID: 1149012667}
-  triggerCollider: {fileID: 1149012666}
+  collidersToToggle: []
   isOn: 1
   debugLogs: 0
 --- !u!136 &1149012666
@@ -2423,6 +2423,19 @@ MonoBehaviour:
   - {fileID: 729373136}
   - {fileID: 512254679}
   - {fileID: 0}
+  - {fileID: 1852644937}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 1149012665}
+  - {fileID: 432000417}
+  - {fileID: 155749953}
+  - {fileID: 729373136}
+  - {fileID: 512254679}
   patterns:
   - stepName: 1st Button
     lasersOff:
@@ -2434,10 +2447,22 @@ MonoBehaviour:
     - {fileID: 155749953}
     - {fileID: 729373136}
     - {fileID: 512254679}
-  ik: {fileID: 0}
+  ik: {fileID: 67636930}
   driveIKTarget: 1
   pauseAfterPress: 1
   targetSmoothTime: 0.12
+  avoidLasers: 1
+  laserLayerMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  steerSphereRadius: 0.04
+  detourDistance: 0.22
+  detourSamples: 8
+  detourHoldTime: 0.35
+  nearGoalRadius: 0.14
+  influenceRadius: 0.35
+  repulsionStrength: 0.9
+  steerStepDistance: 0.22
   autoPressByDistance: 1
   autoPressRadius: 0.06
   autoPressCooldown: 0.3
@@ -2494,7 +2519,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0.7071068, w: 0.7071068}
   m_LocalPosition: {x: 0, y: 2.23, z: 2.05}
-  m_LocalScale: {x: 0.5, y: 7, z: 0.5}
+  m_LocalScale: {x: 0.2, y: 7, z: 0.2}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 417079264}
@@ -2518,7 +2543,7 @@ MonoBehaviour:
   endEffectorTag: EndEffector
   renderersToToggle:
   - {fileID: 1852644939}
-  triggerCollider: {fileID: 1852644938}
+  collidersToToggle: []
   isOn: 1
   debugLogs: 0
 --- !u!136 &1852644938
@@ -2651,7 +2676,7 @@ SphereCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Radius: 0.7
+  m_Radius: 0.5
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!23 &1940354206
 MeshRenderer:

@@ -28,6 +28,38 @@ public class Level2Manager : MonoBehaviour
     [Tooltip("Movimiento del target: SmoothDamp time")]
     public float targetSmoothTime = 0.12f;
 
+    [Header("Avoidance (PRE-collision)")]
+    public bool avoidLasers = true;
+
+    [Tooltip("Pon aquí SOLO la layer de los láseres (recomendado: crea layer 'Laser' y así no te estorba nada más).")]
+    public LayerMask laserLayerMask = ~0;
+
+    [Tooltip("Radio del SphereCast para considerar el grosor del brazo/target frente al láser.")]
+    public float steerSphereRadius = 0.05f;
+
+    [Tooltip("Cuánto nos desviamos alrededor del punto de impacto para generar un detour.")]
+    public float detourDistance = 0.22f;
+
+    [Tooltip("Cuántas direcciones probamos alrededor del impacto (8 suele ir bien).")]
+    [Range(4, 16)]
+    public int detourSamples = 8;
+
+    [Tooltip("Tiempo mínimo manteniendo un detour para evitar temblores.")]
+    public float detourHoldTime = 0.35f;
+
+    [Tooltip("A qué distancia del botón dejamos de esquivar (para poder presionar sin “orbitar”).")]
+    public float nearGoalRadius = 0.14f;
+
+    [Header("Soft repulsion (helps find holes)")]
+    [Tooltip("Radio de influencia para repulsión suave (ayuda a meterse por huecos).")]
+    public float influenceRadius = 0.35f;
+
+    [Tooltip("Fuerza de repulsión suave (sube si sigue rozando).")]
+    public float repulsionStrength = 0.9f;
+
+    [Tooltip("Distancia de paso cuando estamos esquivando (cómo de rápido “busca camino”).")]
+    public float steerStepDistance = 0.22f;
+
     [Header("Backup Press (sin física)")]
     public bool autoPressByDistance = true;
     public float autoPressRadius = 0.06f;
@@ -59,6 +91,10 @@ public class Level2Manager : MonoBehaviour
     float _lastDist;
     string _lastEvent = "";
     float _lastEventTime;
+
+    // avoidance state
+    Vector3 _detourPos;
+    float _detourUntil;
 
     void Log(string msg)
     {
@@ -118,7 +154,9 @@ public class Level2Manager : MonoBehaviour
 
         currentStep = 0;
         ApplyPattern(currentStep);
-        SetDesiredTargetForStep(currentStep, snap: false);
+
+        // primer objetivo
+        _desiredTargetPos = GetStepTargetPos(currentStep);
 
         Log($"Initial currentStep={currentStep}");
     }
@@ -127,8 +165,13 @@ public class Level2Manager : MonoBehaviour
     {
         if (!securityEnabled) return;
 
+        // 1) recalcula el target cada frame
+        UpdateDesiredTargetWithAvoidance();
+
+        // 2) mueve el target
         if (driveIKTarget) DriveIKTarget();
 
+        // 3) autoprensado
         if (autoPressByDistance) AutoPressCheck();
     }
 
@@ -175,18 +218,173 @@ public class Level2Manager : MonoBehaviour
         );
     }
 
-    void SetDesiredTargetForStep(int step, bool snap)
-    {
-        _desiredTargetPos = GetStepTargetPos(step);
-        if (snap && _runtimeTarget != null) _runtimeTarget.position = _desiredTargetPos;
-        Log($"SetDesiredTarget step={step} pos={_desiredTargetPos}");
-    }
-
     Vector3 GetStepTargetPos(int step)
     {
-        if (buttons == null || buttons.Length == 0) return _runtimeTarget != null ? _runtimeTarget.position : transform.position;
+        if (buttons == null || buttons.Length == 0)
+            return _runtimeTarget != null ? _runtimeTarget.position : transform.position;
+
         int idx = Mathf.Clamp(step, 0, buttons.Length - 1);
         return buttons[idx].GetPressWorldPos();
+    }
+
+    void UpdateDesiredTargetWithAvoidance()
+    {
+        if (_paused || _transitioning) return;
+
+        Vector3 finalGoal = GetStepTargetPos(currentStep);
+        Transform end = GetEndEffector();
+        Vector3 endPos = end != null ? end.position : (_runtimeTarget != null ? _runtimeTarget.position : transform.position);
+
+        // si estamos muy cerca del botón, NO esquives: ve directo para poder pulsar.
+        float distToGoal = Vector3.Distance(endPos, finalGoal);
+        if (!avoidLasers || distToGoal <= nearGoalRadius)
+        {
+            _desiredTargetPos = finalGoal;
+            return;
+        }
+
+        // si estamos manteniendo un detour (anti-jitter)
+        if (Time.time < _detourUntil)
+        {
+            _desiredTargetPos = _detourPos;
+            return;
+        }
+
+        // 1) si el camino directo está bloqueado -> crea detour
+        if (SphereCastToLaser(endPos, finalGoal, steerSphereRadius, out RaycastHit hit, out Laser hitLaser))
+        {
+            Vector3 detour = FindBestDetour(endPos, finalGoal, hit.point, (finalGoal - endPos).normalized);
+            if (detour != Vector3.zero)
+            {
+                _detourPos = detour;
+                _detourUntil = Time.time + detourHoldTime;
+                _desiredTargetPos = _detourPos;
+                return;
+            }
+        }
+
+        // 2) si no hay bloqueo directo, aplica repulsión suave para “buscar huecos”
+        Vector3 toGoal = finalGoal - endPos;
+        Vector3 force = toGoal.sqrMagnitude > 1e-6f ? toGoal.normalized : Vector3.zero;
+
+        Vector3 repulsion = ComputeRepulsion(endPos);
+        force += repulsion * repulsionStrength;
+
+        if (force.sqrMagnitude < 1e-6f)
+        {
+            _desiredTargetPos = finalGoal;
+            return;
+        }
+
+        float step = Mathf.Min(steerStepDistance, distToGoal);
+        _desiredTargetPos = endPos + force.normalized * step;
+    }
+
+    Vector3 ComputeRepulsion(Vector3 pos)
+    {
+        Vector3 rep = Vector3.zero;
+
+        Collider[] cols = Physics.OverlapSphere(
+            pos,
+            influenceRadius,
+            laserLayerMask,
+            QueryTriggerInteraction.Collide
+        );
+
+        for (int i = 0; i < cols.Length; i++)
+        {
+            var laser = cols[i].GetComponentInParent<Laser>();
+            if (laser == null || !laser.isOn) continue;
+
+            Vector3 cp = cols[i].ClosestPoint(pos);
+            Vector3 v = pos - cp;
+            float d = v.magnitude;
+
+            if (d < 1e-4f) continue;
+            if (d > influenceRadius) continue;
+
+            float t = 1f - (d / influenceRadius);   // 0..1
+            rep += (v / d) * (t * t);                // cuadrática (suave)
+        }
+
+        return rep;
+    }
+
+    bool SphereCastToLaser(Vector3 from, Vector3 to, float radius, out RaycastHit bestHit, out Laser bestLaser)
+    {
+        bestHit = default;
+        bestLaser = null;
+
+        Vector3 dir = to - from;
+        float dist = dir.magnitude;
+        if (dist < 1e-5f) return false;
+        dir /= dist;
+
+        RaycastHit[] hits = Physics.SphereCastAll(
+            from,
+            radius,
+            dir,
+            dist,
+            laserLayerMask,
+            QueryTriggerInteraction.Collide
+        );
+
+        float best = float.PositiveInfinity;
+
+        for (int i = 0; i < hits.Length; i++)
+        {
+            var laser = hits[i].collider.GetComponentInParent<Laser>();
+            if (laser == null || !laser.isOn) continue;
+
+            if (hits[i].distance < best)
+            {
+                best = hits[i].distance;
+                bestHit = hits[i];
+                bestLaser = laser;
+            }
+        }
+
+        return bestLaser != null;
+    }
+
+    Vector3 FindBestDetour(Vector3 from, Vector3 goal, Vector3 hitPoint, Vector3 dirToGoal)
+    {
+        // base ortonormal en el plano perpendicular a dirToGoal
+        Vector3 right = Vector3.Cross(Vector3.up, dirToGoal);
+        if (right.sqrMagnitude < 1e-6f) right = Vector3.Cross(Vector3.forward, dirToGoal);
+        right.Normalize();
+
+        Vector3 up2 = Vector3.Cross(dirToGoal, right);
+        up2.Normalize();
+
+        Vector3 best = Vector3.zero;
+        float bestScore = float.PositiveInfinity;
+
+        for (int i = 0; i < detourSamples; i++)
+        {
+            float ang = (i / (float)detourSamples) * Mathf.PI * 2f;
+            Vector3 offset = (Mathf.Cos(ang) * right + Mathf.Sin(ang) * up2) * detourDistance;
+            Vector3 cand = hitPoint + offset;
+
+            // scoring: penaliza si hay láser en los tramos
+            float score = 0f;
+
+            if (SphereCastToLaser(from, cand, steerSphereRadius, out _, out _)) score += 1000f;
+            if (SphereCastToLaser(cand, goal, steerSphereRadius, out _, out _)) score += 600f;
+
+            score += Vector3.Distance(from, cand);
+            score += Vector3.Distance(cand, goal) * 0.35f;
+
+            if (score < bestScore)
+            {
+                bestScore = score;
+                best = cand;
+            }
+        }
+
+        // si todo era malísimo, devuelve zero para que use repulsión
+        if (bestScore >= 900f) return Vector3.zero;
+        return best;
     }
 
     // ---------- Press flow ----------
@@ -233,9 +431,7 @@ public class Level2Manager : MonoBehaviour
 
         yield return new WaitForSeconds(pauseAfterPress);
 
-        SetDesiredTargetForStep(currentStep, snap: false);
         _paused = false;
-
         _transitioning = false;
         _advanceRoutine = null;
     }
@@ -285,9 +481,10 @@ public class Level2Manager : MonoBehaviour
         _paused = false;
 
         currentStep = 0;
+        _detourUntil = 0f;
+
         Log("ResetSequence -> currentStep=0");
         ApplyPattern(currentStep);
-        SetDesiredTargetForStep(currentStep, snap: false);
     }
 
     void DisableSecurity()
@@ -336,13 +533,13 @@ public class Level2Manager : MonoBehaviour
     {
         if (!debugOnScreen) return;
 
-        GUILayout.BeginArea(new Rect(10, 10, 520, 170), GUI.skin.box);
+        GUILayout.BeginArea(new Rect(10, 10, 560, 190), GUI.skin.box);
         GUILayout.Label("Level2 DEBUG");
         GUILayout.Label($"securityEnabled: {securityEnabled} | paused: {_paused} | transitioning: {_transitioning}");
         GUILayout.Label($"currentStep: {currentStep}/{(buttons != null ? buttons.Length : 0)}");
+        GUILayout.Label($"avoidLasers: {avoidLasers} | detourActive: {(Time.time < _detourUntil)}");
         GUILayout.Label($"autoPressByDistance: {autoPressByDistance} | distToCurrent: {_lastDist:0.000} | radius: {autoPressRadius:0.000}");
         GUILayout.Label($"Last: {_lastEvent}");
-        GUILayout.Label($"Last age: {(Time.time - _lastEventTime):0.00}s");
         GUILayout.EndArea();
     }
 }
