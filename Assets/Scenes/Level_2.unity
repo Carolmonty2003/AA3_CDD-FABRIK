@@ -129,6 +129,8 @@ GameObject:
   m_Component:
   - component: {fileID: 67636931}
   - component: {fileID: 67636930}
+  - component: {fileID: 67636933}
+  - component: {fileID: 67636932}
   m_Layer: 0
   m_Name: Arm (FABRIK)
   m_TagString: Untagged
@@ -183,6 +185,56 @@ Transform:
   - {fileID: 1940354204}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!54 &67636932
+Rigidbody:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 67636929}
+  serializedVersion: 4
+  m_Mass: 1
+  m_Drag: 0
+  m_AngularDrag: 0.05
+  m_CenterOfMass: {x: 0, y: 0, z: 0}
+  m_InertiaTensor: {x: 1, y: 1, z: 1}
+  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ImplicitCom: 1
+  m_ImplicitTensor: 1
+  m_UseGravity: 0
+  m_IsKinematic: 1
+  m_Interpolate: 0
+  m_Constraints: 0
+  m_CollisionDetection: 0
+--- !u!136 &67636933
+CapsuleCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 67636929}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 2
+  m_Radius: 0.5
+  m_Height: 7.8121886
+  m_Direction: 1
+  m_Center: {x: 0, y: 3.4060943, z: 0}
 --- !u!1 &144273583
 GameObject:
   m_ObjectHideFlags: 0
@@ -305,7 +357,7 @@ GameObject:
   - component: {fileID: 155749955}
   - component: {fileID: 155749954}
   - component: {fileID: 155749953}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Laser 03
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -339,16 +391,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 767b317cbe75a204aab34a3bc35472f6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  manager: {fileID: 0}
-  armLayerMask:
-    serializedVersion: 2
-    m_Bits: 128
-  endEffectorTag: EndEffector
-  renderersToToggle:
-  - {fileID: 155749955}
-  collidersToToggle: []
-  isOn: 1
-  debugLogs: 0
+  hitColliders: []
+  visuals: []
+  extraBehaviours: []
+  activeOnStart: 1
 --- !u!136 &155749954
 CapsuleCollider:
   m_ObjectHideFlags: 0
@@ -364,7 +410,7 @@ CapsuleCollider:
     serializedVersion: 2
     m_Bits: 0
   m_LayerOverridePriority: 0
-  m_IsTrigger: 1
+  m_IsTrigger: 0
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 2
@@ -573,7 +619,6 @@ GameObject:
   - component: {fileID: 332746490}
   - component: {fileID: 332746493}
   - component: {fileID: 332746492}
-  - component: {fileID: 332746491}
   m_Layer: 0
   m_Name: Joint_1
   m_TagString: Untagged
@@ -597,27 +642,6 @@ Transform:
   - {fileID: 1537141438}
   m_Father: {fileID: 67636931}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!135 &332746491
-SphereCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 332746489}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Radius: 0.5
-  m_Center: {x: 0, y: 0, z: 0}
 --- !u!23 &332746492
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -842,7 +866,7 @@ GameObject:
   - component: {fileID: 432000419}
   - component: {fileID: 432000418}
   - component: {fileID: 432000417}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Laser 02
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -876,16 +900,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 767b317cbe75a204aab34a3bc35472f6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  manager: {fileID: 0}
-  armLayerMask:
-    serializedVersion: 2
-    m_Bits: 128
-  endEffectorTag: EndEffector
-  renderersToToggle:
-  - {fileID: 432000419}
-  collidersToToggle: []
-  isOn: 1
-  debugLogs: 0
+  hitColliders: []
+  visuals: []
+  extraBehaviours: []
+  activeOnStart: 1
 --- !u!136 &432000418
 CapsuleCollider:
   m_ObjectHideFlags: 0
@@ -901,7 +919,7 @@ CapsuleCollider:
     serializedVersion: 2
     m_Bits: 0
   m_LayerOverridePriority: 0
-  m_IsTrigger: 1
+  m_IsTrigger: 0
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 2
@@ -994,15 +1012,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 67361ee1e846cb44e91164d906fed680, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  manager: {fileID: 1844711647}
-  orderIndex: 1
   pressPoint: {fileID: 0}
-  armLayerMask:
-    serializedVersion: 2
-    m_Bits: 0
-  endEffectorTag: EndEffector
-  pressCooldown: 0.35
-  debugLogs: 1
 --- !u!135 &481870070
 SphereCollider:
   m_ObjectHideFlags: 0
@@ -1086,7 +1096,7 @@ Transform:
   m_GameObject: {fileID: 481870068}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 5.05, z: 4}
+  m_LocalPosition: {x: 0, y: 3.15, z: 3.3}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1105,7 +1115,7 @@ GameObject:
   - component: {fileID: 512254681}
   - component: {fileID: 512254680}
   - component: {fileID: 512254679}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Laser 05
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1139,16 +1149,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 767b317cbe75a204aab34a3bc35472f6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  manager: {fileID: 0}
-  armLayerMask:
-    serializedVersion: 2
-    m_Bits: 128
-  endEffectorTag: EndEffector
-  renderersToToggle:
-  - {fileID: 512254681}
-  collidersToToggle: []
-  isOn: 1
-  debugLogs: 0
+  hitColliders: []
+  visuals: []
+  extraBehaviours: []
+  activeOnStart: 1
 --- !u!136 &512254680
 CapsuleCollider:
   m_ObjectHideFlags: 0
@@ -1164,7 +1168,7 @@ CapsuleCollider:
     serializedVersion: 2
     m_Bits: 0
   m_LayerOverridePriority: 0
-  m_IsTrigger: 1
+  m_IsTrigger: 0
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 2
@@ -1236,7 +1240,6 @@ GameObject:
   - component: {fileID: 522486175}
   - component: {fileID: 522486178}
   - component: {fileID: 522486177}
-  - component: {fileID: 522486176}
   m_Layer: 0
   m_Name: Joint_2
   m_TagString: Untagged
@@ -1260,27 +1263,6 @@ Transform:
   - {fileID: 536711776}
   m_Father: {fileID: 67636931}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!135 &522486176
-SphereCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 522486174}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Radius: 0.5
-  m_Center: {x: 0, y: 0, z: 0}
 --- !u!23 &522486177
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -1381,15 +1363,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 67361ee1e846cb44e91164d906fed680, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  manager: {fileID: 1844711647}
-  orderIndex: 2
   pressPoint: {fileID: 0}
-  armLayerMask:
-    serializedVersion: 2
-    m_Bits: 0
-  endEffectorTag: EndEffector
-  pressCooldown: 0.35
-  debugLogs: 1
 --- !u!135 &528391692
 SphereCollider:
   m_ObjectHideFlags: 0
@@ -1475,7 +1449,6 @@ GameObject:
   - component: {fileID: 536711776}
   - component: {fileID: 536711779}
   - component: {fileID: 536711778}
-  - component: {fileID: 536711777}
   m_Layer: 0
   m_Name: Cylinder
   m_TagString: Untagged
@@ -1498,29 +1471,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 522486175}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!136 &536711777
-CapsuleCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 536711775}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 2
-  m_Radius: 0.5000001
-  m_Height: 2
-  m_Direction: 1
-  m_Center: {x: 0.000000059604645, y: 0, z: -0.00000008940697}
 --- !u!23 &536711778
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -1621,7 +1571,7 @@ GameObject:
   - component: {fileID: 729373138}
   - component: {fileID: 729373137}
   - component: {fileID: 729373136}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Laser 04
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1655,16 +1605,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 767b317cbe75a204aab34a3bc35472f6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  manager: {fileID: 0}
-  armLayerMask:
-    serializedVersion: 2
-    m_Bits: 128
-  endEffectorTag: EndEffector
-  renderersToToggle:
-  - {fileID: 729373138}
-  collidersToToggle: []
-  isOn: 1
-  debugLogs: 0
+  hitColliders: []
+  visuals: []
+  extraBehaviours: []
+  activeOnStart: 1
 --- !u!136 &729373137
 CapsuleCollider:
   m_ObjectHideFlags: 0
@@ -1680,7 +1624,7 @@ CapsuleCollider:
     serializedVersion: 2
     m_Bits: 0
   m_LayerOverridePriority: 0
-  m_IsTrigger: 1
+  m_IsTrigger: 0
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 2
@@ -1822,15 +1766,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 67361ee1e846cb44e91164d906fed680, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  manager: {fileID: 1844711647}
-  orderIndex: 0
   pressPoint: {fileID: 0}
-  armLayerMask:
-    serializedVersion: 2
-    m_Bits: 0
-  endEffectorTag: EndEffector
-  pressCooldown: 0.35
-  debugLogs: 1
 --- !u!135 &978763542
 SphereCollider:
   m_ObjectHideFlags: 0
@@ -1933,7 +1869,7 @@ GameObject:
   - component: {fileID: 1149012667}
   - component: {fileID: 1149012666}
   - component: {fileID: 1149012665}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Laser 01
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1967,16 +1903,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 767b317cbe75a204aab34a3bc35472f6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  manager: {fileID: 0}
-  armLayerMask:
-    serializedVersion: 2
-    m_Bits: 128
-  endEffectorTag: EndEffector
-  renderersToToggle:
-  - {fileID: 1149012667}
-  collidersToToggle: []
-  isOn: 1
-  debugLogs: 0
+  hitColliders: []
+  visuals: []
+  extraBehaviours: []
+  activeOnStart: 1
 --- !u!136 &1149012666
 CapsuleCollider:
   m_ObjectHideFlags: 0
@@ -1992,7 +1922,7 @@ CapsuleCollider:
     serializedVersion: 2
     m_Bits: 0
   m_LayerOverridePriority: 0
-  m_IsTrigger: 1
+  m_IsTrigger: 0
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 2
@@ -2064,7 +1994,6 @@ GameObject:
   - component: {fileID: 1532632129}
   - component: {fileID: 1532632132}
   - component: {fileID: 1532632131}
-  - component: {fileID: 1532632130}
   m_Layer: 0
   m_Name: Joint_0 (base
   m_TagString: Untagged
@@ -2088,27 +2017,6 @@ Transform:
   - {fileID: 1623804343}
   m_Father: {fileID: 67636931}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!135 &1532632130
-SphereCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1532632128}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Radius: 0.5
-  m_Center: {x: 0, y: 0, z: 0}
 --- !u!23 &1532632131
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -2173,7 +2081,6 @@ GameObject:
   - component: {fileID: 1537141438}
   - component: {fileID: 1537141441}
   - component: {fileID: 1537141440}
-  - component: {fileID: 1537141439}
   m_Layer: 0
   m_Name: Cylinder
   m_TagString: Untagged
@@ -2196,29 +2103,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 332746490}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!136 &1537141439
-CapsuleCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1537141437}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 2
-  m_Radius: 0.5000001
-  m_Height: 2
-  m_Direction: 1
-  m_Center: {x: 0.000000059604645, y: 0, z: -0.00000008940697}
 --- !u!23 &1537141440
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -2283,7 +2167,6 @@ GameObject:
   - component: {fileID: 1623804343}
   - component: {fileID: 1623804346}
   - component: {fileID: 1623804345}
-  - component: {fileID: 1623804344}
   m_Layer: 0
   m_Name: Cylinder
   m_TagString: Untagged
@@ -2306,29 +2189,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1532632129}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!136 &1623804344
-CapsuleCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1623804342}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 2
-  m_Radius: 0.5000001
-  m_Height: 2
-  m_Direction: 1
-  m_Center: {x: 0.000000059604645, y: 0, z: -0.00000008940697}
 --- !u!23 &1623804345
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -2411,69 +2271,34 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 84ef0eaf969e1d04798343c849e23951, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  buttons:
-  - {fileID: 978763541}
-  - {fileID: 481870069}
-  - {fileID: 528391691}
-  allLasers:
-  - {fileID: 1852644937}
-  - {fileID: 1149012665}
-  - {fileID: 432000417}
-  - {fileID: 155749953}
-  - {fileID: 729373136}
-  - {fileID: 512254679}
-  - {fileID: 0}
-  - {fileID: 1852644937}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 1149012665}
-  - {fileID: 432000417}
-  - {fileID: 155749953}
-  - {fileID: 729373136}
-  - {fileID: 512254679}
-  patterns:
-  - stepName: 1st Button
-    lasersOff:
+  ikTarget: {fileID: 67636931}
+  endEffector: {fileID: 1940354204}
+  steps:
+  - expectedButton: {fileID: 978763541}
+    disableLasers:
     - {fileID: 155749953}
     - {fileID: 729373136}
     - {fileID: 512254679}
-  - stepName: 2nd Button
-    lasersOff:
-    - {fileID: 155749953}
-    - {fileID: 729373136}
-    - {fileID: 512254679}
-  ik: {fileID: 67636930}
-  driveIKTarget: 1
-  pauseAfterPress: 1
-  targetSmoothTime: 0.12
-  avoidLasers: 1
-  laserLayerMask:
+    enableLasers: []
+  - expectedButton: {fileID: 481870069}
+    disableLasers: []
+    enableLasers: []
+  - expectedButton: {fileID: 528391691}
+    disableLasers: []
+    enableLasers: []
+  moveSpeed: 2
+  pressDistance: 0.08
+  stopAfterPressSeconds: 1
+  obstacleMask:
     serializedVersion: 2
-    m_Bits: 4294967295
-  steerSphereRadius: 0.04
-  detourDistance: 0.22
-  detourSamples: 8
-  detourHoldTime: 0.35
-  nearGoalRadius: 0.14
-  influenceRadius: 0.35
-  repulsionStrength: 0.9
-  steerStepDistance: 0.22
-  autoPressByDistance: 1
-  autoPressRadius: 0.06
-  autoPressCooldown: 0.3
-  armLayerMask:
-    serializedVersion: 2
-    m_Bits: 128
-  resetOnLaserHit: 1
-  debugLogs: 1
-  debugOnScreen: 1
-  currentStep: 0
-  securityEnabled: 1
+    m_Bits: 256
+  avoidanceRadius: 0.5
+  avoidanceLookAhead: 0.6
+  avoidanceStrength: 1.4
+  emergencyPushStrength: 3
+  chainRadius: 0.5
+  chainPushStrength: 4
+  overlapBufferSize: 32
 --- !u!4 &1844711648
 Transform:
   m_ObjectHideFlags: 0
@@ -2502,7 +2327,7 @@ GameObject:
   - component: {fileID: 1852644939}
   - component: {fileID: 1852644938}
   - component: {fileID: 1852644937}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Laser 00
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -2536,16 +2361,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 767b317cbe75a204aab34a3bc35472f6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  manager: {fileID: 0}
-  armLayerMask:
-    serializedVersion: 2
-    m_Bits: 128
-  endEffectorTag: EndEffector
-  renderersToToggle:
-  - {fileID: 1852644939}
-  collidersToToggle: []
-  isOn: 1
-  debugLogs: 0
+  hitColliders:
+  - {fileID: 1852644938}
+  visuals: []
+  extraBehaviours: []
+  activeOnStart: 1
 --- !u!136 &1852644938
 CapsuleCollider:
   m_ObjectHideFlags: 0
@@ -2561,7 +2381,7 @@ CapsuleCollider:
     serializedVersion: 2
     m_Bits: 0
   m_LayerOverridePriority: 0
-  m_IsTrigger: 1
+  m_IsTrigger: 0
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 2
@@ -2634,7 +2454,6 @@ GameObject:
   - component: {fileID: 1940354207}
   - component: {fileID: 1940354206}
   - component: {fileID: 1940354205}
-  - component: {fileID: 1940354208}
   m_Layer: 7
   m_Name: Joint_3 (end effector)
   m_TagString: EndEffector
@@ -2731,33 +2550,6 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1940354203}
   m_Mesh: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}
---- !u!54 &1940354208
-Rigidbody:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1940354203}
-  serializedVersion: 4
-  m_Mass: 1
-  m_Drag: 0
-  m_AngularDrag: 0.05
-  m_CenterOfMass: {x: 0, y: 0, z: 0}
-  m_InertiaTensor: {x: 1, y: 1, z: 1}
-  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ImplicitCom: 1
-  m_ImplicitTensor: 1
-  m_UseGravity: 0
-  m_IsKinematic: 1
-  m_Interpolate: 0
-  m_Constraints: 0
-  m_CollisionDetection: 0
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
