@@ -160,4 +160,12 @@ public static class Quaternions
         float roll = eulerDeg.z * MathLite.Deg2Rad;
         return YawPitchRoll(yaw, pitch, roll);
     }
+
+    // Extensión para Quaternion dot product
+    public static float DotProduct(Quaternion a, Quaternion b)
+    {
+        return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;
+    }
+
+
 }

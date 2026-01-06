@@ -2,8 +2,10 @@ using UnityEngine;
 using System.Collections.Generic;
 
 /// <summary>
-/// Level1Manager con ESQUIVA MEJORADA
-/// El target ESPERA a que el brazo llegue antes de avanzar al siguiente waypoint
+/// Level1Manager (CCD) con:
+/// - Clamp de destinos al reach del tentáculo
+/// - Ruta por waypoints (subir -> horizontal -> bajar) al volver al depósito
+/// - Auto-elevar la altura de transporte si detecta obstáculo en el tramo horizontal
 /// </summary>
 public class Level1Manager : MonoBehaviour
 {
@@ -24,32 +26,16 @@ public class Level1Manager : MonoBehaviour
     public int coresDeposited = 0;
     public int totalCores = 0;
 
-    [Header("NAVEGACIÓN Y OBSTÁCULOS")]
-    [Tooltip("Obstáculos que el brazo debe esquivar")]
-    public GameObject[] obstacles;
-
-    [Tooltip("Altura a la que se eleva para esquivar obstáculos")]
-    public float avoidanceHeight = 0.8f;
-
-    [Tooltip("Detectar obstáculos automáticamente")]
-    public bool autoDetectObstacles = true;
-
-    [Tooltip("Layer de obstáculos (opcional)")]
-    public LayerMask obstacleLayer = -1;
-
     [Header("Control del Flujo")]
     public bool autoTargetNextCore = true;
-    private int currentTargetIndex = 0;
 
     private enum State
     {
         APPROACHING_CORE,
-        AVOIDING_OBSTACLE,
         WAITING_TO_GRAB,
         GRABBING,
         LIFTING_CORE,
         CARRYING_CORE,
-        AVOIDING_RETURN,
         LOWERING_CORE,
         DEPOSITING,
         LEVEL_COMPLETE
@@ -59,14 +45,13 @@ public class Level1Manager : MonoBehaviour
     private DataCore currentCore = null;
 
     [Header("Configuración de Movimiento")]
-    public float targetMoveSpeed = 5.0f;
-
-    [Tooltip("Distancia para considerar que el brazo llegó al waypoint")]
-    public float waypointArrivalDistance = 2.0f;
-
+    public float targetMoveSpeed = 3.0f;
     public float pauseBeforeGrab = 0.3f;
     public float grabDuration = 0.5f;
+
+    [Tooltip("Altura local extra al depositar (por encima del depósito).")]
     public float liftHeight = 0.3f;
+
     public float pauseBeforeDeposit = 0.3f;
     public float depositDisplayTime = 1.0f;
 
@@ -74,163 +59,98 @@ public class Level1Manager : MonoBehaviour
     public float distanceThreshold = 0.15f;
     public float depositDistance = 0.25f;
 
+    [Header("Reach / Safety")]
+    public bool clampDestinationsToReach = true;
+
+    [Header("Ruta de vuelta al depósito")]
+    public float carryHeight = 1.2f;            // altura “segura” para ir en horizontal
+    public float carryHeightStepUp = 0.25f;     // cuánto sube si detecta obstáculo
+    public int carryHeightMaxTries = 10;        // intentos de elevar
+    public float pathArriveThreshold = 0.05f;
+
+    [Header("Obstacle check (para la ruta del target)")]
+    public bool avoidObstaclesForTarget = true;
+    public LayerMask obstacleLayerForTarget;
+    public float targetAvoidRadius = 0.20f;
+
     [Header("Estado del Nivel")]
     public bool levelComplete = false;
     public float elapsedTime = 0f;
 
-    // Sistema de waypoints mejorado
-    private Queue<Vector3> waypointQueue = new Queue<Vector3>();
-    private Vector3 currentWaypoint;
-    private bool hasCurrentWaypoint = false;
-    private bool waitingForArmToArrive = false;
+    private bool isMovingTarget = false;
+
+    // Waypoints
+    private readonly List<Vector3> path = new List<Vector3>();
+    private int pathIndex = 0;
+
+    // Puntos guardados para checks
+    private Vector3 depositApproachPoint;
+    private Vector3 depositLowerPoint;
 
     void Start()
     {
-        Debug.Log("=== NIVEL 1 INICIANDO (Esquiva Mejorada) ===");
+        Debug.Log("=== NIVEL 1 INICIANDO (CCD + Waypoints) ===");
 
         if (dataCores == null || dataCores.Length == 0)
-        {
             dataCores = FindObjectsOfType<DataCore>();
-            Debug.Log($"Auto-encontrados {dataCores.Length} DataCores");
-        }
 
         totalCores = dataCores.Length;
         coresCollected = 0;
         coresDeposited = 0;
 
-        if ((obstacles == null || obstacles.Length == 0) && autoDetectObstacles)
-        {
-            FindObstacles();
-        }
+        if (ccdSolver == null)
+            ccdSolver = GetComponent<CCDIK>();
 
         if (depositPoint == null && autoCreateDepositPoint)
-        {
             CreateDepositPoint();
-        }
 
         if (target == null && autoCreateTarget)
-        {
             CreateTarget();
-        }
-
-        if (ccdSolver == null)
-        {
-            ccdSolver = GetComponent<CCDIK>();
-        }
 
         if (ccdSolver != null && target != null)
-        {
             ccdSolver.target = target;
-            Debug.Log("✓ Target asignado al CCD");
-        }
+
+        // Si no has seteado obstacleLayerForTarget, copia el del CCD
+        if (avoidObstaclesForTarget && obstacleLayerForTarget.value == 0 && ccdSolver != null)
+            obstacleLayerForTarget = ccdSolver.obstacleLayer;
 
         if (autoTargetNextCore)
         {
             currentState = State.APPROACHING_CORE;
-            MoveToNextCoreWithAvoidance();
+            MoveToNextCore();
         }
 
-        Debug.Log($"=== NIVEL 1 LISTO: {totalCores} núcleos | {obstacles?.Length ?? 0} obstáculos ===");
+        Debug.Log($"=== NIVEL 1 LISTO: {totalCores} núcleos ===");
     }
 
     void Update()
     {
-        if (!levelComplete)
-        {
-            elapsedTime += Time.deltaTime;
-            UpdateWaypointNavigation();
-            UpdateStateMachine();
-        }
+        if (levelComplete) return;
+
+        elapsedTime += Time.deltaTime;
+        UpdateTargetMovement();
+        UpdateStateMachine();
     }
 
-    void FindObstacles()
+    void UpdateTargetMovement()
     {
-        List<GameObject> foundObstacles = new List<GameObject>();
+        if (!isMovingTarget || target == null) return;
+        if (path.Count == 0) { isMovingTarget = false; return; }
 
-        GameObject[] tagged1 = GameObject.FindGameObjectsWithTag("Obstacle");
-        GameObject[] tagged2 = GameObject.FindGameObjectsWithTag("Column");
+        Vector3 dest = path[Mathf.Clamp(pathIndex, 0, path.Count - 1)];
+        float distance = Vector3.Distance(target.position, dest);
 
-        foundObstacles.AddRange(tagged1);
-        foundObstacles.AddRange(tagged2);
-
-        if (foundObstacles.Count == 0)
+        if (distance > pathArriveThreshold)
         {
-            GameObject[] allObjects = FindObjectsOfType<GameObject>();
-            foreach (GameObject obj in allObjects)
-            {
-                if (obj.name.ToLower().Contains("column") ||
-                    obj.name.ToLower().Contains("columna") ||
-                    obj.name.ToLower().Contains("servidor") ||
-                    obj.name.ToLower().Contains("obstacle"))
-                {
-                    foundObstacles.Add(obj);
-                }
-            }
-        }
-
-        obstacles = foundObstacles.ToArray();
-        Debug.Log($"Auto-detectados {obstacles.Length} obstáculos");
-    }
-
-    /// <summary>
-    /// Sistema de navegación mejorado:
-    /// El target se mueve hacia el waypoint actual
-    /// ESPERA a que el brazo llegue cerca antes de avanzar al siguiente
-    /// </summary>
-    void UpdateWaypointNavigation()
-    {
-        if (!hasCurrentWaypoint || target == null) return;
-
-        // Mover target hacia el waypoint actual
-        float distanceToWaypoint = Vectors.Distance(target.position, currentWaypoint);
-
-        if (distanceToWaypoint > 0.01f)
-        {
-            target.position = Vectors.MoveTowards(
-                target.position,
-                currentWaypoint,
-                targetMoveSpeed * Time.deltaTime
-            );
+            target.position = Vectors.MoveTowards(target.position, dest, targetMoveSpeed * Time.deltaTime);
         }
         else
         {
-            // Target llegó al waypoint
-            target.position = currentWaypoint;
+            target.position = dest;
+            pathIndex++;
 
-            if (!waitingForArmToArrive)
-            {
-                waitingForArmToArrive = true;
-                Debug.Log($"✓ Target llegó a waypoint, esperando al brazo...");
-            }
-        }
-
-        // Verificar si el BRAZO llegó cerca del waypoint actual
-        if (waitingForArmToArrive)
-        {
-            Vector3 armPos = GetEndEffectorPosition();
-            float armDistance = Vectors.Distance(armPos, currentWaypoint);
-
-            if (armDistance < waypointArrivalDistance)
-            {
-                Debug.Log($"✓ Brazo llegó al waypoint (distancia: {armDistance:F2}m)");
-                waitingForArmToArrive = false;
-                AdvanceToNextWaypoint();
-            }
-        }
-    }
-
-    void AdvanceToNextWaypoint()
-    {
-        if (waypointQueue.Count > 0)
-        {
-            currentWaypoint = waypointQueue.Dequeue();
-            hasCurrentWaypoint = true;
-            Debug.Log($"→ Siguiente waypoint: {currentWaypoint}");
-        }
-        else
-        {
-            hasCurrentWaypoint = false;
-            Debug.Log("✓ Ruta completada");
+            if (pathIndex >= path.Count)
+                isMovingTarget = false;
         }
     }
 
@@ -239,12 +159,10 @@ public class Level1Manager : MonoBehaviour
         switch (currentState)
         {
             case State.APPROACHING_CORE:
-            case State.AVOIDING_OBSTACLE:
                 CheckIfReachedCore();
                 break;
 
             case State.CARRYING_CORE:
-            case State.AVOIDING_RETURN:
                 CheckIfReachedDeposit();
                 break;
 
@@ -254,36 +172,75 @@ public class Level1Manager : MonoBehaviour
         }
     }
 
-    bool IsPathBlocked(Vector3 from, Vector3 to)
+    // ---------- Reach helpers ----------
+    Vector3 ClampToArmReach(Vector3 p)
     {
-        if (!autoDetectObstacles || obstacles == null || obstacles.Length == 0)
-            return false;
+        if (!clampDestinationsToReach) return p;
+        if (ccdSolver == null || ccdSolver.joints == null || ccdSolver.joints.Length < 2) return p;
 
-        Vector3 direction = to - from;
-        float distance = Vectors.Magnitude(direction);
+        Vector3 basePos = ccdSolver.joints[0].position;
+        float max = Mathf.Max(0f, ccdSolver.totalReach - ccdSolver.reachEpsilon);
 
-        RaycastHit hit;
-        if (Physics.Raycast(from, direction, out hit, distance, obstacleLayer))
-        {
-            foreach (GameObject obstacle in obstacles)
-            {
-                if (obstacle != null && hit.collider.gameObject == obstacle)
-                {
-                    Debug.Log($"⚠ Obstáculo detectado: {obstacle.name}");
-                    return true;
-                }
-            }
-        }
+        Vector3 v = p - basePos;
+        float dist = v.magnitude;
 
-        return false;
+        if (dist > max && dist > 1e-6f)
+            p = basePos + (v / dist) * max;
+
+        return p;
     }
 
-    void MoveToNextCoreWithAvoidance()
+    // ---------- Path helpers ----------
+    void ClearPath()
+    {
+        path.Clear();
+        pathIndex = 0;
+    }
+
+    void SetPath(params Vector3[] points)
+    {
+        ClearPath();
+        for (int i = 0; i < points.Length; i++)
+            path.Add(ClampToArmReach(points[i]));
+
+        isMovingTarget = true;
+    }
+
+    bool SegmentBlocked(Vector3 a, Vector3 b)
+    {
+        if (!avoidObstaclesForTarget) return false;
+
+        Vector3 d = b - a;
+        float dist = d.magnitude;
+        if (dist < 1e-4f) return false;
+        d /= dist;
+
+        return Physics.SphereCast(a, targetAvoidRadius, d, out _, dist, obstacleLayerForTarget);
+    }
+
+    float ComputeCarryYForReturn(Vector3 start, Vector3 endXZ, float initialY)
+    {
+        float y = initialY;
+
+        for (int tries = 0; tries < carryHeightMaxTries; tries++)
+        {
+            Vector3 a = new Vector3(start.x, y, start.z);
+            Vector3 b = new Vector3(endXZ.x, y, endXZ.z);
+
+            if (!SegmentBlocked(a, b))
+                return y;
+
+            y += carryHeightStepUp;
+        }
+
+        return y;
+    }
+
+    // ---------- Flow ----------
+    void MoveToNextCore()
     {
         if (currentCore == null)
-        {
             currentCore = FindNextUncollectedCore();
-        }
 
         if (target == null || currentCore == null)
         {
@@ -291,87 +248,37 @@ public class Level1Manager : MonoBehaviour
             return;
         }
 
-        Debug.Log($">>> Yendo hacia: {currentCore.gameObject.name}");
-
-        waypointQueue.Clear();
-        waitingForArmToArrive = false;
-
-        Vector3 startPos = GetArmBasePosition();
-        Vector3 endPos = currentCore.transform.position;
-
-        if (IsPathBlocked(startPos, endPos))
-        {
-            Debug.Log("¡Obstáculo detectado! Calculando ruta alternativa...");
-            currentState = State.AVOIDING_OBSTACLE;
-
-            Vector3 aboveObstacle = new Vector3(
-                (startPos.x + endPos.x) / 2f,
-                Mathf.Max(startPos.y, endPos.y) + avoidanceHeight,
-                (startPos.z + endPos.z) / 2f
-            );
-
-            // Añadir waypoints a la cola
-            waypointQueue.Enqueue(aboveObstacle);
-            waypointQueue.Enqueue(endPos);
-
-            Debug.Log($"Ruta: {startPos} → {aboveObstacle} (elevado) → {endPos}");
-        }
-        else
-        {
-            waypointQueue.Enqueue(endPos);
-        }
-
-        // Empezar con el primer waypoint
-        AdvanceToNextWaypoint();
+        // Para ir al core: directo (a ti te iba bien)
+        SetPath(currentCore.transform.position);
     }
 
-    void MoveToDepositWithAvoidance()
+    void MoveToDeposit()
     {
         if (target == null || depositPoint == null) return;
 
-        waypointQueue.Clear();
-        waitingForArmToArrive = false;
+        // Punto de aproximación (sobre el depósito)
+        depositApproachPoint = depositPoint.position + Vector3.up * liftHeight;
+        depositApproachPoint = ClampToArmReach(depositApproachPoint);
 
-        Vector3 startPos = GetEndEffectorPosition();
-        Vector3 aboveDeposit = depositPoint.position + Vector3.up * liftHeight;
+        // Ruta: subir -> horizontal -> acercarse al punto sobre depósito
+        Vector3 start = target.position;
+        Vector3 endXZ = depositApproachPoint;
 
-        if (IsPathBlocked(startPos, aboveDeposit))
-        {
-            Debug.Log("Obstáculo en el camino de vuelta, esquivando...");
-            currentState = State.AVOIDING_RETURN;
+        // Elegimos una Y de transporte que NO esté bloqueada en el tramo horizontal
+        float yCarry = ComputeCarryYForReturn(start, endXZ, carryHeight);
 
-            Vector3 avoidPoint = new Vector3(
-                (startPos.x + aboveDeposit.x) / 2f,
-                Mathf.Max(startPos.y, aboveDeposit.y) + avoidanceHeight,
-                (startPos.z + aboveDeposit.z) / 2f
-            );
+        Vector3 wpUp = new Vector3(start.x, yCarry, start.z);
+        Vector3 wpOver = new Vector3(endXZ.x, yCarry, endXZ.z);
 
-            waypointQueue.Enqueue(avoidPoint);
-            waypointQueue.Enqueue(aboveDeposit);
-        }
-        else
-        {
-            waypointQueue.Enqueue(aboveDeposit);
-        }
-
-        AdvanceToNextWaypoint();
-    }
-
-    Vector3 GetArmBasePosition()
-    {
-        if (ccdSolver != null && ccdSolver.joints != null && ccdSolver.joints.Length > 0)
-        {
-            return ccdSolver.joints[0].position;
-        }
-        return transform.position;
+        // Si al final la aproximación sobre depósito está más baja que el carry, bajamos con un último waypoint
+        SetPath(wpUp, wpOver, depositApproachPoint);
     }
 
     Vector3 GetEndEffectorPosition()
     {
         if (ccdSolver != null && ccdSolver.joints != null && ccdSolver.joints.Length > 0)
-        {
             return ccdSolver.joints[ccdSolver.joints.Length - 1].position;
-        }
+
         return transform.position;
     }
 
@@ -380,33 +287,35 @@ public class Level1Manager : MonoBehaviour
         if (ccdSolver == null || currentCore == null) return;
 
         Vector3 endEffectorPos = GetEndEffectorPosition();
-        float distance = Vectors.Distance(endEffectorPos, currentCore.transform.position);
+        float distance = Vector3.Distance(endEffectorPos, currentCore.transform.position);
 
-        if (distance < distanceThreshold && !hasCurrentWaypoint)
+        if (distance < distanceThreshold)
         {
-            Debug.Log("Brazo llegó al núcleo");
             currentState = State.WAITING_TO_GRAB;
-            Invoke("StartGrabbing", pauseBeforeGrab);
+            isMovingTarget = false;
+            Invoke(nameof(StartGrabbing), pauseBeforeGrab);
         }
     }
 
     void StartGrabbing()
     {
         if (currentCore == null) return;
+
         currentState = State.GRABBING;
         currentCore.Collect();
-        Invoke("AttachCore", grabDuration * 0.5f);
+        Invoke(nameof(AttachCore), grabDuration * 0.5f);
     }
 
     void AttachCore()
     {
         if (currentCore == null) return;
+        if (ccdSolver == null || ccdSolver.joints == null || ccdSolver.joints.Length == 0) return;
 
         Transform endEffector = ccdSolver.joints[ccdSolver.joints.Length - 1];
         currentCore.transform.SetParent(endEffector);
         currentCore.transform.localPosition = Vector3.zero;
 
-        Invoke("LiftCore", grabDuration * 0.5f);
+        Invoke(nameof(LiftCore), grabDuration * 0.5f);
     }
 
     void LiftCore()
@@ -416,24 +325,17 @@ public class Level1Manager : MonoBehaviour
         if (currentCore != null)
         {
             Vector3 liftPosition = currentCore.transform.position + Vector3.up * liftHeight;
-
-            waypointQueue.Clear();
-            waypointQueue.Enqueue(liftPosition);
-            waitingForArmToArrive = false;
-
-            AdvanceToNextWaypoint();
+            SetPath(liftPosition);
         }
 
-        Invoke("StartCarrying", 0.8f);
+        Invoke(nameof(StartCarrying), 0.8f);
     }
 
     void StartCarrying()
     {
-        Debug.Log("Llevando núcleo al depósito (con esquiva)...");
         currentState = State.CARRYING_CORE;
         coresCollected++;
-
-        MoveToDepositWithAvoidance();
+        MoveToDeposit();
     }
 
     void CheckIfReachedDeposit()
@@ -441,22 +343,22 @@ public class Level1Manager : MonoBehaviour
         if (ccdSolver == null || depositPoint == null) return;
 
         Vector3 endEffectorPos = GetEndEffectorPosition();
-        Vector3 aboveDeposit = depositPoint.position + Vector3.up * liftHeight;
-        float distance = Vectors.Distance(endEffectorPos, aboveDeposit);
+        float distance = Vector3.Distance(endEffectorPos, depositApproachPoint);
 
-        if (distance < depositDistance && !hasCurrentWaypoint)
+        if (distance < depositDistance)
         {
             currentState = State.LOWERING_CORE;
-            Invoke("LowerToDeposit", pauseBeforeDeposit);
+            isMovingTarget = false;
+            Invoke(nameof(LowerToDeposit), pauseBeforeDeposit);
         }
     }
 
     void LowerToDeposit()
     {
-        waypointQueue.Clear();
-        waypointQueue.Enqueue(depositPoint.position);
-        waitingForArmToArrive = false;
-        AdvanceToNextWaypoint();
+        if (depositPoint == null) return;
+
+        depositLowerPoint = ClampToArmReach(depositPoint.position);
+        SetPath(depositLowerPoint);
     }
 
     void CheckIfFinishedLowering()
@@ -464,12 +366,10 @@ public class Level1Manager : MonoBehaviour
         if (ccdSolver == null || depositPoint == null) return;
 
         Vector3 endEffectorPos = GetEndEffectorPosition();
-        float distance = Vectors.Distance(endEffectorPos, depositPoint.position);
+        float distance = Vector3.Distance(endEffectorPos, depositLowerPoint);
 
         if (distance < depositDistance)
-        {
             DepositCore();
-        }
     }
 
     void DepositCore()
@@ -478,21 +378,18 @@ public class Level1Manager : MonoBehaviour
 
         currentState = State.DEPOSITING;
         coresDeposited++;
+        isMovingTarget = false;
 
         currentCore.transform.SetParent(null);
         currentCore.transform.position = depositPoint.position;
         currentCore.Deposit();
 
-        Invoke("DeactivateCurrentCore", depositDisplayTime);
+        Invoke(nameof(DeactivateCurrentCore), depositDisplayTime);
 
         if (coresDeposited >= totalCores)
-        {
-            Invoke("CompleteLevel", depositDisplayTime + 0.5f);
-        }
+            Invoke(nameof(CompleteLevel), depositDisplayTime + 0.5f);
         else
-        {
-            Invoke("StartNextPickup", depositDisplayTime + 0.5f);
-        }
+            Invoke(nameof(StartNextPickup), depositDisplayTime + 0.5f);
     }
 
     void DeactivateCurrentCore()
@@ -512,18 +409,11 @@ public class Level1Manager : MonoBehaviour
         if (nextCore != null)
         {
             currentCore = nextCore;
-            MoveToNextCoreWithAvoidance();
+            MoveToNextCore();
         }
     }
 
-    public void OnDataCoreCollected(DataCore core)
-    {
-        if (currentCore == null && currentState == State.APPROACHING_CORE)
-        {
-            currentCore = core;
-        }
-    }
-
+    // ---------- Auto-create ----------
     void CreateTarget()
     {
         GameObject targetObj = GameObject.CreatePrimitive(PrimitiveType.Sphere);
@@ -544,8 +434,11 @@ public class Level1Manager : MonoBehaviour
         depositObj.name = "DepositPoint";
         depositPoint = depositObj.transform;
 
-        Vector3 basePos = GetArmBasePosition();
-        depositPoint.position = basePos + new Vector3(-0.7f, 0.05f, 0);
+        Vector3 basePos = ccdSolver != null && ccdSolver.joints != null && ccdSolver.joints.Length > 0
+            ? ccdSolver.joints[0].position
+            : transform.position;
+
+        depositPoint.position = basePos + new Vector3(-0.7f, 0.05f, 0f);
         depositPoint.localScale = new Vector3(0.4f, 0.05f, 0.4f);
 
         Renderer renderer = depositObj.GetComponent<Renderer>();
@@ -565,9 +458,7 @@ public class Level1Manager : MonoBehaviour
         for (int i = 0; i < dataCores.Length; i++)
         {
             if (dataCores[i] != null && !dataCores[i].isCollected)
-            {
                 return dataCores[i];
-            }
         }
         return null;
     }
@@ -584,37 +475,21 @@ public class Level1Manager : MonoBehaviour
         Debug.Log("======================");
     }
 
-    void OnDrawGizmos()
+    public void OnDataCoreCollected(DataCore core)
     {
-        if (obstacles != null)
+        if (core == null) return;
+
+        // Solo nos interesa cuando estamos yendo a por núcleos
+        if (currentState != State.APPROACHING_CORE) return;
+
+        // Si todavía no teníamos core asignado, lo asignamos
+        if (currentCore == null)
         {
-            Gizmos.color = Color.red;
-            foreach (GameObject obstacle in obstacles)
-            {
-                if (obstacle != null)
-                {
-                    Gizmos.DrawWireCube(obstacle.transform.position, obstacle.transform.localScale);
-                }
-            }
+            currentCore = core;
         }
 
-        if (Application.isPlaying && hasCurrentWaypoint)
-        {
-            Gizmos.color = Color.yellow;
-            Gizmos.DrawWireSphere(currentWaypoint, 0.2f);
-            Gizmos.DrawLine(target.position, currentWaypoint);
-        }
-
-        if (Application.isPlaying && waypointQueue != null && waypointQueue.Count > 0)
-        {
-            Gizmos.color = Color.cyan;
-            Vector3 prev = hasCurrentWaypoint ? currentWaypoint : (target != null ? target.position : Vector3.zero);
-            foreach (Vector3 waypoint in waypointQueue)
-            {
-                Gizmos.DrawLine(prev, waypoint);
-                Gizmos.DrawWireSphere(waypoint, 0.15f);
-                prev = waypoint;
-            }
-        }
+        // (Opcional) Si quieres, podrías forzar que deje de moverse el target aquí:
+        // isMovingTarget = false;
     }
+
 }
