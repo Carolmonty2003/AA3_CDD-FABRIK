@@ -14,7 +14,7 @@ public class Level2Manager : MonoBehaviour
 
     [Header("References")]
     [SerializeField] private Transform ikTarget;      // Arm (FABRIK)
-    [SerializeField] private Transform endEffector;   // opcional; si null usa el último joint del FABRIK
+    [SerializeField] private Transform endEffector;
     [SerializeField] private Step[] steps;
 
     [Header("Movement")]
@@ -43,7 +43,9 @@ public class Level2Manager : MonoBehaviour
 
     private void Awake()
     {
-        overlapBuffer = new Collider[Mathf.Max(8, overlapBufferSize)];
+        int bufSize = overlapBufferSize;
+        if (bufSize < 8) bufSize = 8;
+        overlapBuffer = new Collider[bufSize];
 
         BindFabrik();
         EnsureFabrikTarget();
@@ -125,7 +127,7 @@ public class Level2Manager : MonoBehaviour
 
             Vector3 goal = step.expectedButton.GetPressWorldPosition();
 
-            while (Vector3.Distance(endEffector.position, goal) > pressDistance)
+            while (Vectors.Distance(endEffector.position, goal) > pressDistance)
             {
                 MoveFabrikTargetTowards(goal);
                 yield return null; // FABRIK resuelve en LateUpdate
@@ -146,39 +148,42 @@ public class Level2Manager : MonoBehaviour
         Vector3 from = fabrik.target.position;
         Vector3 toGoal = goal - from;
 
-        if (toGoal.sqrMagnitude < 1e-8f) return;
+        if (Vectors.SqrMagnitude(toGoal) < 1e-8f) return;
 
-        Vector3 desiredDir = toGoal.normalized;
-        float castDist = Mathf.Min(avoidanceLookAhead, toGoal.magnitude);
+        float toGoalMag = Vectors.Magnitude(toGoal);
+        Vector3 desiredDir = Vectors.Normalize(toGoal);
+        float castDist = MathLite.Min(avoidanceLookAhead, toGoalMag);
 
         Vector3 steering = desiredDir;
 
         // 1) Evitación proactiva para el target
         if (Physics.SphereCast(from, avoidanceRadius, desiredDir, out _, castDist, obstacleMask, QueryTriggerInteraction.Collide))
         {
-            Vector3 left = Vector3.Cross(Vector3.up, desiredDir).normalized;
-            if (left.sqrMagnitude < 1e-6f) left = Vector3.Cross(Vector3.forward, desiredDir).normalized;
+            Vector3 left = Vectors.Normalize(Vectors.CrossProduct(Vectors.Up(), desiredDir));
+            if (Vectors.SqrMagnitude(left) < 1e-6f)
+                left = Vectors.Normalize(Vectors.CrossProduct(Vectors.Forward(), desiredDir));
+
             Vector3 right = -left;
 
             float leftClear = Clearance(from, left, castDist);
             float rightClear = Clearance(from, right, castDist);
 
             Vector3 side = (leftClear >= rightClear) ? left : right;
-            steering = (desiredDir + side * avoidanceStrength).normalized;
+            steering = Vectors.Normalize(desiredDir + side * avoidanceStrength);
         }
 
         // 2) Empuje de emergencia si el target está rozando
         Vector3 emergency = ComputeEmergencyPush(from);
-        if (emergency.sqrMagnitude > 1e-8f)
-            steering = (steering + emergency.normalized * emergencyPushStrength).normalized;
+        if (Vectors.SqrMagnitude(emergency) > 1e-8f)
+            steering = Vectors.Normalize(steering + Vectors.Normalize(emergency) * emergencyPushStrength);
 
-        // 3) B) Anti-cruce de TODA la cadena: si cualquier segmento interseca láseres, empuja fuera
+        // 3) Anti-cruce de TODA la cadena: si cualquier segmento interseca láseres, empuja fuera
         Vector3 chainPush = ComputeChainPush();
-        if (chainPush.sqrMagnitude > 1e-8f)
-            steering = (steering + chainPush.normalized * chainPushStrength).normalized;
+        if (Vectors.SqrMagnitude(chainPush) > 1e-8f)
+            steering = Vectors.Normalize(steering + Vectors.Normalize(chainPush) * chainPushStrength);
 
         float step = moveSpeed * Time.deltaTime;
-        if (step > toGoal.magnitude) step = toGoal.magnitude;
+        if (step > toGoalMag) step = toGoalMag;
 
         fabrik.target.position = from + steering * step;
     }
@@ -204,13 +209,13 @@ public class Level2Manager : MonoBehaviour
             Vector3 closest = col.ClosestPoint(pos);
             Vector3 away = pos - closest;
 
-            float d = away.magnitude;
+            float d = Vectors.Magnitude(away);
             if (d < 0.0001f) continue;
 
-            push += away.normalized * (1f / (d + 0.001f));
+            push += Vectors.Normalize(away) * (1f / (d + 0.001f));
         }
 
-        return Vector3.ProjectOnPlane(push, Vector3.up);
+        return Vectors.ProjectOnPlane(push, Vectors.Up());
     }
 
     private Vector3 ComputeChainPush()
@@ -245,16 +250,16 @@ public class Level2Manager : MonoBehaviour
                 Vector3 closest = col.ClosestPoint(mid);
                 Vector3 away = mid - closest;
 
-                float d = away.magnitude;
+                float d = Vectors.Magnitude(away);
                 if (d < 0.0001f) continue;
 
-                total += away.normalized * (1f / (d + 0.001f));
+                total += Vectors.Normalize(away) * (1f / (d + 0.001f));
                 contributions++;
             }
         }
 
         if (contributions == 0) return Vector3.zero;
-        return Vector3.ProjectOnPlane(total, Vector3.up);
+        return Vectors.ProjectOnPlane(total, Vectors.Up());
     }
 
     private void ApplyStep(Step step)

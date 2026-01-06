@@ -73,8 +73,8 @@ public static class Vectors
     public static Vector3 Right() => new Vector3(1, 0, 0);
 
     /// <summary>
-    /// Devuelve 'point' clamped a una distancia máxima desde 'origin'.
-    /// Si ya está dentro, se devuelve tal cual.
+    /// Devuelve 'point' clamped a una distancia mï¿½xima desde 'origin'.
+    /// Si ya estï¿½ dentro, se devuelve tal cual.
     /// </summary>
     public static Vector3 ClampToMaxDistance(Vector3 origin, Vector3 point, float maxDistance)
     {
@@ -88,4 +88,14 @@ public static class Vectors
 
         return point;
     }
+
+
+    // Proyecciï¿½n de un vector sobre un plano (equivalente a Vector3.ProjectOnPlane)
+    public static Vector3 ProjectOnPlane(Vector3 v, Vector3 planeNormal)
+    {
+        Vector3 n = Normalize(planeNormal);
+        float d = DotProduct(v, n);
+        return v - n * d;
+    }
+
 }
