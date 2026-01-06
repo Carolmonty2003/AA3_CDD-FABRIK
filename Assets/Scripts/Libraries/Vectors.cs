@@ -81,4 +81,14 @@ public static class Vectors
     public static Vector3 Forward() => new Vector3(0, 0, 1);
     public static Vector3 Up() => new Vector3(0, 1, 0);
     public static Vector3 Right() => new Vector3(1, 0, 0);
+
+
+    // Proyección de un vector sobre un plano (equivalente a Vector3.ProjectOnPlane)
+    public static Vector3 ProjectOnPlane(Vector3 v, Vector3 planeNormal)
+    {
+        Vector3 n = Normalize(planeNormal);
+        float d = DotProduct(v, n);
+        return v - n * d;
+    }
+
 }
