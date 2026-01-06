@@ -201,6 +201,9 @@ public class CCDIK : MonoBehaviour
                         primaryAxis: axis,
                         targetPos: targetPos
                     );
+
+                    // MUY IMPORTANTE: la deflection puede saltarse el clamp anterior
+                    finalRotation = ClampDeltaRotation(finalRotation, maxAnglePerJointDeg);
                 }
 
                 // Step con pesos
@@ -215,6 +218,14 @@ public class CCDIK : MonoBehaviour
                     float w = Mathf.Lerp(baseJointWeight, endJointWeight, curved);
 
                     step = Mathf.Clamp01(step * w);
+                }
+
+                // Si estamos tocando obstáculo, baja agresividad para evitar espasmos
+                if (enableCollisionAvoidance)
+                {
+                    float pNow = CollisionPenalty(i, endIndex, finalRotation, pivot);
+                    if (pNow > 0f)
+                        step *= 0.35f;   // prueba 0.25–0.5
                 }
 
                 if (step < 0.999f)
@@ -329,6 +340,20 @@ public class CCDIK : MonoBehaviour
         // Si no mejora nada útil -> no rotar (anti-jitter)
         return Quaternion.identity;
     }
+
+    Quaternion ClampDeltaRotation(Quaternion delta, float maxDeg)
+    {
+        if (maxDeg <= 0f) return delta;
+
+        float ang = Quaternion.Angle(Quaternion.identity, delta);
+        if (ang > maxDeg && ang > 1e-6f)
+        {
+            float t = maxDeg / ang;
+            return Lerp.SLerp(Quaternion.identity, delta, t);
+        }
+        return delta;
+    }
+
 
     float CollisionPenalty(int jointIndex, int endIndex, Quaternion rotation, Vector3 pivot)
     {

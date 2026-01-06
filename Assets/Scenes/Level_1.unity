@@ -5731,27 +5731,27 @@ MonoBehaviour:
   target: {fileID: 0}
   maxIterations: 35
   tolerance: 0.01
-  rotationStep: 0.45
-  maxAnglePerJointDeg: 15
+  rotationStep: 0.3
+  maxAnglePerJointDeg: 12
   clampUnreachableTarget: 1
   reachEpsilon: 0.02
   totalReach: 0
   enableCollisionAvoidance: 1
-  collisionRadius: 0.13
+  collisionRadius: 0.12
   obstacleLayer:
     serializedVersion: 2
     m_Bits: 64
   deflectionSamples: 12
-  deflectionAngle: 70
+  deflectionAngle: 40
   smoothTarget: 1
   targetDamping: 18
   useJointWeights: 1
   baseJointWeight: 0.08
   endJointWeight: 1
   weightExponent: 2.6
-  collisionWeight: 12
-  distanceWeight: 3
-  minDistanceGain: 0.002
+  collisionWeight: 22
+  distanceWeight: 2
+  minDistanceGain: 0.03
   debugCollisions: 1
   lastIterationsUsed: 0
   currentDistance: 0
