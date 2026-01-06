@@ -1,5 +1,14 @@
 using UnityEngine;
 
+/// <summary>
+/// CCDIK (Cyclic Coordinate Descent) para una cadena de joints.
+/// - Objetivo: rotar joints (de end hacia base) para que el end-effector alcance el target.
+/// - Incluye:
+///   - clamp de reach (evita targets imposibles)
+///   - suavizado del target (reduce jitter por movimiento del target)
+///   - avoidance de colisiones (busca rotaciones alternativas si choca con obstáculos)
+///   - pesos por joint (movimiento más “natural”: base rota menos, end rota más)
+/// </summary>
 public class CCDIK : MonoBehaviour
 {
     [Header("Chain (root -> ... -> end)")]
@@ -37,11 +46,8 @@ public class CCDIK : MonoBehaviour
     [Min(0.1f)] public float weightExponent = 2.6f;
 
     [Header("Avoidance scoring (NEW)")]
-    [Tooltip("Peso de colisión (más alto = evita más obstáculos, pero puede atascarse).")]
     public float collisionWeight = 10f;
-    [Tooltip("Peso de distancia al target (más alto = recalcula mejor y no se queda clavado).")]
     public float distanceWeight = 2.0f;
-    [Tooltip("Ganancia mínima de distancia para aceptar rotación aunque no mejore colisión.")]
     public float minDistanceGain = 0.002f;
 
     [Header("Debug")]
@@ -53,14 +59,22 @@ public class CCDIK : MonoBehaviour
 
     bool initialized = false;
 
+    // Variables para suavizado del target (exponential smoothing)
     Vector3 _smoothedTarget;
     bool _hasSmoothed;
 
+    // Longitudes por segmento (útil para reach total) y caché de ejes para estabilidad
     float[] _lengths;
     Vector3[] _axisCache;
 
     void Start() => Initialize();
 
+    /// <summary>
+    /// Precalcula:
+    /// - longitudes de segmentos
+    /// - totalReach (suma longitudes)
+    /// - caché de ejes por joint (para casos degenerados cuando cross-product da 0)
+    /// </summary>
     void Initialize()
     {
         if (joints == null || joints.Length < 2)
@@ -87,6 +101,15 @@ public class CCDIK : MonoBehaviour
         _hasSmoothed = false;
     }
 
+    /// <summary>
+    /// LateUpdate para que el IK se aplique después de que otros scripts hayan movido el target/escena.
+    /// Flujo:
+    /// 1) limpiar contadores debug
+    /// 2) obtener targetPos (y suavizar si procede)
+    /// 3) clamp de reach si el target está fuera
+    /// 4) ejecutar CCD
+    /// 5) guardar distancia final (debug)
+    /// </summary>
     void LateUpdate()
     {
         if (target == null) return;
@@ -98,6 +121,7 @@ public class CCDIK : MonoBehaviour
 
         Vector3 targetPos = target.position;
 
+        // Suavizado exponencial del target: reduce micro-jitter si el target se mueve/tiembla.
         if (smoothTarget)
         {
             if (!_hasSmoothed)
@@ -106,13 +130,17 @@ public class CCDIK : MonoBehaviour
                 _hasSmoothed = true;
             }
 
-            float t = 1f - Mathf.Exp(-targetDamping * Time.deltaTime);
-            _smoothedTarget = Vector3.Lerp(_smoothedTarget, targetPos, t);
+            float t = MathLite.ExpDampT(targetDamping, Time.deltaTime);
+            _smoothedTarget = Lerp.Lerpp(_smoothedTarget, targetPos, t);
             targetPos = _smoothedTarget;
         }
 
+        // Clamp del target a una esfera de radio (totalReach - epsilon) alrededor de la base del brazo.
         if (clampUnreachableTarget)
-            targetPos = ClampToReach(targetPos);
+        {
+            float max = Mathf.Max(0f, totalReach - reachEpsilon);
+            targetPos = Vectors.ClampToMaxDistance(joints[0].position, targetPos, max);
+        }
 
         lastIterationsUsed = SolveCCD(chain: joints, targetPos: targetPos);
 
@@ -120,21 +148,16 @@ public class CCDIK : MonoBehaviour
         currentDistance = Vector3.Distance(end.position, targetPos);
     }
 
-    Vector3 ClampToReach(Vector3 targetPos)
-    {
-        if (totalReach <= 0f) return targetPos;
-
-        Vector3 basePos = joints[0].position;
-        Vector3 v = targetPos - basePos;
-        float dist = v.magnitude;
-
-        float max = Mathf.Max(0f, totalReach - reachEpsilon);
-        if (dist > max && dist > 1e-6f)
-            return basePos + (v / dist) * max;
-
-        return targetPos;
-    }
-
+    /// <summary>
+    /// Solver CCD:
+    /// - Itera hasta maxIterations o hasta que el end-effector esté dentro de tolerance.
+    /// - En cada iteración recorre joints desde end-1 hasta 0:
+    ///     - calcula rotación "desired" para alinear (joint->end) con (joint->target)
+    ///     - aplica clamp de grados por joint
+    ///     - (opcional) busca alternativa sin colisión (deflection)
+    ///     - aplica step/weights (para que el movimiento sea gradual y “natural”)
+    ///     - aplica la rotación al joint y propaga a los hijos de la cadena (reposiciona)
+    /// </summary>
     int SolveCCD(Transform[] chain, Vector3 targetPos)
     {
         int endIndex = chain.Length - 1;
@@ -162,21 +185,15 @@ public class CCDIK : MonoBehaviour
                 if (toEnd.sqrMagnitude < 1e-12f) continue;
                 if (toTarget.sqrMagnitude < 1e-12f) continue;
 
+                // Rotación que alinea el vector hacia el end con el vector hacia el target.
                 Quaternion desiredRotation = Quaternions.FromToRotation(toEnd, toTarget);
                 Quaternion finalRotation = desiredRotation;
 
-                // Clamp ángulo por joint
-                if (maxAnglePerJointDeg > 0f)
-                {
-                    float ang = Quaternion.Angle(Quaternion.identity, finalRotation);
-                    if (ang > maxAnglePerJointDeg && ang > 1e-6f)
-                    {
-                        float clampT = maxAnglePerJointDeg / ang;
-                        finalRotation = Lerp.SLerp(Quaternion.identity, finalRotation, clampT);
-                    }
-                }
+                // Límite máximo de giro por joint (evita cambios bruscos).
+                finalRotation = Quaternions.ClampDeltaRotation(finalRotation, maxAnglePerJointDeg);
 
-                // Eje real + cache
+                // Axis estable para orientar deflection/avoidance.
+                // Si el cross es degenerado, usa un eje cacheado del frame anterior.
                 Vector3 axis = Vector3.Cross(toEnd, toTarget);
                 if (axis.sqrMagnitude > 1e-12f)
                 {
@@ -189,7 +206,8 @@ public class CCDIK : MonoBehaviour
                     if (axis.sqrMagnitude < 1e-12f) axis = transform.up;
                 }
 
-                // Avoidance (con término de distancia)
+                // Avoidance: si la rotación deseada colisiona, prueba variantes (deflection)
+                // y escoge la mejor según score (colisión + distancia al target).
                 if (enableCollisionAvoidance)
                 {
                     finalRotation = FindCollisionFreeRotation(
@@ -202,13 +220,14 @@ public class CCDIK : MonoBehaviour
                         targetPos: targetPos
                     );
 
-                    // MUY IMPORTANTE: la deflection puede saltarse el clamp anterior
-                    finalRotation = ClampDeltaRotation(finalRotation, maxAnglePerJointDeg);
+                    // Se clampa otra vez por seguridad (evita que el avoidance meta giros grandes).
+                    finalRotation = Quaternions.ClampDeltaRotation(finalRotation, maxAnglePerJointDeg);
                 }
 
-                // Step con pesos
+                // Step base: fracción de la rotación a aplicar este frame/iteración.
                 float step = Mathf.Clamp01(rotationStep);
 
+                // Pesos por joint: reduce movimiento en base y aumenta cerca del end.
                 if (useJointWeights)
                 {
                     float u = (endIndex <= 1) ? 1f : (i / (float)(endIndex - 1));
@@ -220,21 +239,26 @@ public class CCDIK : MonoBehaviour
                     step = Mathf.Clamp01(step * w);
                 }
 
-                // Si estamos tocando obstáculo, baja agresividad para evitar espasmos
+                // Si “aun así” hay colisión en esta rotación, baja el step para reducir jitter al contacto.
                 if (enableCollisionAvoidance)
                 {
                     float pNow = CollisionPenalty(i, endIndex, finalRotation, pivot);
                     if (pNow > 0f)
-                        step *= 0.35f;   // prueba 0.25–0.5
+                        step *= 0.35f;
                 }
 
+                // Aplicación gradual del delta (slerp hacia identidad).
                 if (step < 0.999f)
                     finalRotation = Lerp.SLerp(Quaternion.identity, finalRotation, step);
 
                 finalRotation = Quaternions.Normalize(finalRotation);
 
+                // Aplica al joint.
                 joint.rotation = Quaternions.Normalize(Quaternions.Multiply(finalRotation, joint.rotation));
 
+                // Propaga a todos los hijos de la cadena:
+                // - rota posiciones alrededor del pivot
+                // - rota también sus orientaciones
                 for (int j = i + 1; j <= endIndex; ++j)
                 {
                     Transform child = chain[j];
@@ -252,6 +276,14 @@ public class CCDIK : MonoBehaviour
         return used;
     }
 
+    /// <summary>
+    /// Busca una rotación alternativa cuando "desiredRotation" colisiona.
+    /// Estrategia:
+    /// - calcula penalización de colisión y distancia al target para la rotación deseada
+    /// - si colisiona, prueba rotaciones "deflection" alrededor de ejes candidatos (primary y alternativo)
+    /// - puntúa cada opción con un score (menos colisión y más cerca del target)
+    /// - si no mejora nada útil, devuelve identidad para evitar jitter
+    /// </summary>
     Quaternion FindCollisionFreeRotation(
         int jointIndex,
         int endIndex,
@@ -264,7 +296,6 @@ public class CCDIK : MonoBehaviour
     {
         float desiredPenalty = CollisionPenalty(jointIndex, endIndex, desiredRotation, pivot);
 
-        // Distancia del end-effector tras aplicar "desired"
         Vector3 endR = joints[endIndex].position - pivot;
         Vector3 desiredEnd = pivot + Quaternions.Rotate3D(endR, desiredRotation);
         float desiredDist = Vector3.Distance(desiredEnd, targetPos);
@@ -276,6 +307,7 @@ public class CCDIK : MonoBehaviour
 
         Vector3 cd = currentDirection.normalized;
 
+        // Eje alternativo por si el principal no resuelve bien en este ángulo/configuración.
         Vector3 altAxis = Vector3.Cross(primaryAxis, cd);
         if (altAxis.sqrMagnitude > 1e-12f) altAxis.Normalize();
         else altAxis = Vector3.right;
@@ -287,6 +319,7 @@ public class CCDIK : MonoBehaviour
         float bestDist = desiredDist;
         float bestScore = float.MinValue;
 
+        // Muestras progresivas: desde un ángulo pequeño hasta deflectionAngle.
         for (int sample = 1; sample <= deflectionSamples; sample++)
         {
             float angleDeg = (sample / (float)deflectionSamples) * deflectionAngle;
@@ -295,6 +328,7 @@ public class CCDIK : MonoBehaviour
             {
                 Vector3 axis = axesToTry[a];
 
+                // Prueba en ambas direcciones (+ y -)
                 for (int dir = -1; dir <= 1; dir += 2)
                 {
                     float testAngle = angleDeg * dir * Mathf.Deg2Rad;
@@ -306,7 +340,6 @@ public class CCDIK : MonoBehaviour
                     Vector3 testEnd = pivot + Quaternions.Rotate3D(endR, testRotation);
                     float d = Vector3.Distance(testEnd, targetPos);
 
-                    // Score: prioriza bajar colisión, pero también acercarse al target (para “recalcular”)
                     float score = (-p * collisionWeight) + (-d * distanceWeight);
 
                     if (score > bestScore)
@@ -326,35 +359,28 @@ public class CCDIK : MonoBehaviour
             if (bestPenalty <= 0f) break;
         }
 
-        // Si mejora colisión, perfecto
+        // Si mejora colisión respecto a la deseada, úsala.
         if (bestPenalty < desiredPenalty)
         {
             deflectionsApplied++;
             return bestRotation;
         }
 
-        // Si NO mejora colisión, pero sí se acerca bastante al target, permite avanzar (evita quedarse clavado)
+        // Si no mejora colisión pero mejora distancia lo suficiente, permite avanzar.
         if (bestDist < desiredDist - minDistanceGain)
             return bestRotation;
 
-        // Si no mejora nada útil -> no rotar (anti-jitter)
+        // Si no mejora nada, no rotar (reduce jitter).
         return Quaternion.identity;
     }
 
-    Quaternion ClampDeltaRotation(Quaternion delta, float maxDeg)
-    {
-        if (maxDeg <= 0f) return delta;
-
-        float ang = Quaternion.Angle(Quaternion.identity, delta);
-        if (ang > maxDeg && ang > 1e-6f)
-        {
-            float t = maxDeg / ang;
-            return Lerp.SLerp(Quaternion.identity, delta, t);
-        }
-        return delta;
-    }
-
-
+    /// <summary>
+    /// Penalización de colisión del “brazo” tras aplicar una rotación delta en un joint.
+    /// Implementación:
+    /// - construye segmentos (pivot -> cada joint siguiente) rotados
+    /// - evalúa OverlapCapsule por segmento
+    /// - suma 1 por collider válido detectado (ignorando triggers y el propio brazo)
+    /// </summary>
     float CollisionPenalty(int jointIndex, int endIndex, Quaternion rotation, Vector3 pivot)
     {
         float penalty = 0f;
@@ -382,6 +408,9 @@ public class CCDIK : MonoBehaviour
         return penalty;
     }
 
+    /// <summary>
+    /// Evita que el avoidance se detecte a sí mismo: ignora colliders del propio brazo/jerarquía.
+    /// </summary>
     bool IsPartOfArm(GameObject obj)
     {
         foreach (Transform joint in joints)
@@ -398,6 +427,9 @@ public class CCDIK : MonoBehaviour
         return false;
     }
 
+    /// <summary>
+    /// Gizmos para visualizar el radio de colisión usado por el avoidance.
+    /// </summary>
     void OnDrawGizmos()
     {
         if (!debugCollisions || joints == null) return;

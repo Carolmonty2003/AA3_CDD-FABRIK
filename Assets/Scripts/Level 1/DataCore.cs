@@ -1,7 +1,8 @@
 using UnityEngine;
 
 /// <summary>
-/// DataCore mejorado con feedback visual durante recogida y depósito
+/// DataCore con feedback visual mientras espera (pulso/rotación),
+/// y callbacks de estado para "Collect" y "Deposit".
 /// </summary>
 public class DataCore : MonoBehaviour
 {
@@ -31,13 +32,13 @@ public class DataCore : MonoBehaviour
     {
         initialScale = transform.localScale;
 
+        // Cachea renderer/material para cambiar color y emisión.
         coreRenderer = GetComponent<Renderer>();
         if (coreRenderer != null)
         {
             coreMaterial = coreRenderer.material;
             coreMaterial.color = waitingColor;
 
-            // Hacer que brille
             if (coreMaterial.HasProperty("_EmissionColor"))
             {
                 coreMaterial.EnableKeyword("_EMISSION");
@@ -50,7 +51,7 @@ public class DataCore : MonoBehaviour
     {
         if (isCollected) return;
 
-        // Efectos visuales mientras espera ser recogido
+        // Mientras está “libre”, hace pulso/rotación para feedback visual.
         if (enablePulse)
         {
             pulseTimer += Time.deltaTime * pulseSpeed;
@@ -68,16 +69,16 @@ public class DataCore : MonoBehaviour
     {
         if (isCollected) return;
 
-        // Detectar end-effector
+        // Detección flexible del end-effector (tag, root tag, o nombre de joint).
         bool isEndEffector = other.CompareTag(endEffectorTag) ||
                             other.transform.root.CompareTag(endEffectorTag) ||
-                            other.name.Contains("Joint_5") ||  // Ajusta al número de tu end-effector
+                            other.name.Contains("Joint_5") ||
                             other.name.Contains("Joint_6") ||
                             other.name.Contains("end");
 
         if (isEndEffector)
         {
-            // Solo notificar al manager, él controlará la secuencia
+            // Notifica al Level1Manager; el manager decide la secuencia real.
             Level1Manager manager = FindObjectOfType<Level1Manager>();
             if (manager != null)
             {
@@ -87,7 +88,7 @@ public class DataCore : MonoBehaviour
     }
 
     /// <summary>
-    /// Llamado cuando el brazo "coge" el núcleo
+    /// Marca el core como recogido y ajusta feedback visual.
     /// </summary>
     public void Collect()
     {
@@ -97,7 +98,6 @@ public class DataCore : MonoBehaviour
 
         Debug.Log($"[DataCore] {gameObject.name} siendo recogido");
 
-        // Cambiar a color verde
         if (coreMaterial != null)
         {
             coreMaterial.color = collectedColor;
@@ -108,22 +108,18 @@ public class DataCore : MonoBehaviour
             }
         }
 
-        // Desactivar efectos de pulso y rotación
         enablePulse = false;
         enableRotation = false;
-
-        // Restaurar escala normal
         transform.localScale = initialScale;
     }
 
     /// <summary>
-    /// Llamado cuando se deposita en el punto de depósito
+    /// Llamado al depositar: cambia color y dispara animación sutil.
     /// </summary>
     public void Deposit()
     {
         Debug.Log($"[DataCore] {gameObject.name} depositado");
 
-        // Cambiar a color amarillo/dorado
         if (coreMaterial != null)
         {
             coreMaterial.color = depositedColor;
@@ -134,12 +130,11 @@ public class DataCore : MonoBehaviour
             }
         }
 
-        // Pequeña animación de "aterrizaje"
         StartCoroutine(DepositAnimation());
     }
 
     /// <summary>
-    /// Animación sutil cuando se deposita
+    /// Animación “squash & return” al depositar.
     /// </summary>
     System.Collections.IEnumerator DepositAnimation()
     {
@@ -150,7 +145,6 @@ public class DataCore : MonoBehaviour
             startScale.z * 1.2f
         );
 
-        // Squash (aplastamiento)
         float t = 0;
         while (t < 1)
         {
@@ -159,7 +153,6 @@ public class DataCore : MonoBehaviour
             yield return null;
         }
 
-        // Volver a normal
         t = 0;
         while (t < 1)
         {
@@ -171,6 +164,9 @@ public class DataCore : MonoBehaviour
         transform.localScale = initialScale;
     }
 
+    /// <summary>
+    /// Reseteo del core para reutilizarlo (estado + visual + parent).
+    /// </summary>
     public void Reset()
     {
         isCollected = false;

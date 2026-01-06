@@ -37,19 +37,14 @@ public static class Quaternions
 
     public static Quaternion LookRotationCustom(Vector3 forward, Vector3 up)
     {
-        // Igual que Quaternion.LookRotation (Unity): construimos una base ortonormal
-        // con forward como eje Z (transform.forward) y up como eje Y.
         Vector3 f = Vectors.Normalize(forward);
         Vector3 u = Vectors.Normalize(up);
 
-        // Si forward es casi cero, no podemos construir una rotación válida
         if (Vectors.SqrMagnitude(f) < 1e-12f) return Quaternion.identity;
 
-        // right = up x forward (Unity)
         Vector3 r = Vectors.CrossProduct(u, f);
         if (Vectors.SqrMagnitude(r) < 1e-12f)
         {
-            // up y forward están casi paralelos: buscamos un up alternativo
             u = (MathLite.Abs(f.y) < 0.999f) ? Vectors.Up() : Vectors.Right();
             r = Vectors.CrossProduct(u, f);
         }
@@ -57,7 +52,6 @@ public static class Quaternions
         r = Vectors.Normalize(r);
         u = Vectors.Normalize(Vectors.CrossProduct(f, r));
 
-        // Matriz de rotación con los ejes como COLUMNAS: [r u f]
         float m00 = r.x, m01 = u.x, m02 = f.x;
         float m10 = r.y, m11 = u.y, m12 = f.y;
         float m20 = r.z, m21 = u.z, m22 = f.z;
@@ -161,11 +155,26 @@ public static class Quaternions
         return YawPitchRoll(yaw, pitch, roll);
     }
 
-    // Extensión para Quaternion dot product
     public static float DotProduct(Quaternion a, Quaternion b)
     {
         return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;
     }
 
+    /// <summary>
+    /// Clampea una rotación delta (asumida como delta respecto a identidad) a un máximo de grados.
+    /// Útil para limitar giros por-joint o por-iteración.
+    /// </summary>
+    public static Quaternion ClampDeltaRotation(Quaternion delta, float maxDeg)
+    {
+        if (maxDeg <= 0f) return delta;
 
+        float ang = Quaternion.Angle(Quaternion.identity, delta);
+        if (ang > maxDeg && ang > 1e-6f)
+        {
+            float t = maxDeg / ang;
+            return Lerp.SLerp(Quaternion.identity, delta, t);
+        }
+
+        return delta;
+    }
 }

@@ -2,10 +2,9 @@ using UnityEngine;
 using System.Collections.Generic;
 
 /// <summary>
-/// Level1Manager (CCD) con:
-/// - Clamp de destinos al reach del tentáculo
-/// - Ruta por waypoints (subir -> horizontal -> bajar) al volver al depósito
-/// - Auto-elevar la altura de transporte si detecta obstáculo en el tramo horizontal
+/// Manager del nivel: controla el “flujo” (ir a core, agarrar, transportar, depositar).
+/// Usa waypoints para el target en el retorno al depósito (subir -> horizontal -> bajar),
+/// y puede elevar la altura de transporte si detecta obstáculo en el tramo horizontal.
 /// </summary>
 public class Level1Manager : MonoBehaviour
 {
@@ -29,6 +28,7 @@ public class Level1Manager : MonoBehaviour
     [Header("Control del Flujo")]
     public bool autoTargetNextCore = true;
 
+    // Estados principales del “ciclo” de recolección.
     private enum State
     {
         APPROACHING_CORE,
@@ -79,11 +79,11 @@ public class Level1Manager : MonoBehaviour
 
     private bool isMovingTarget = false;
 
-    // Waypoints
+    // Waypoints del target (lista + índice).
     private readonly List<Vector3> path = new List<Vector3>();
     private int pathIndex = 0;
 
-    // Puntos guardados para checks
+    // Puntos usados en checks de llegada al depósito.
     private Vector3 depositApproachPoint;
     private Vector3 depositLowerPoint;
 
@@ -110,7 +110,7 @@ public class Level1Manager : MonoBehaviour
         if (ccdSolver != null && target != null)
             ccdSolver.target = target;
 
-        // Si no has seteado obstacleLayerForTarget, copia el del CCD
+        // Si no se configuró obstacleLayerForTarget, se copia del CCD para consistencia.
         if (avoidObstaclesForTarget && obstacleLayerForTarget.value == 0 && ccdSolver != null)
             obstacleLayerForTarget = ccdSolver.obstacleLayer;
 
@@ -132,6 +132,9 @@ public class Level1Manager : MonoBehaviour
         UpdateStateMachine();
     }
 
+    /// <summary>
+    /// Movimiento del target siguiendo los waypoints (MoveTowards).
+    /// </summary>
     void UpdateTargetMovement()
     {
         if (!isMovingTarget || target == null) return;
@@ -154,6 +157,9 @@ public class Level1Manager : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Máquina de estados mínima: solo chequea los estados donde se espera “llegar” a algo.
+    /// </summary>
     void UpdateStateMachine()
     {
         switch (currentState)
@@ -173,6 +179,10 @@ public class Level1Manager : MonoBehaviour
     }
 
     // ---------- Reach helpers ----------
+    /// <summary>
+    /// Si está activado, clampa destinos a un radio máximo (alcance del brazo - epsilon).
+    /// Evita que el target pida posiciones imposibles.
+    /// </summary>
     Vector3 ClampToArmReach(Vector3 p)
     {
         if (!clampDestinationsToReach) return p;
@@ -197,6 +207,9 @@ public class Level1Manager : MonoBehaviour
         pathIndex = 0;
     }
 
+    /// <summary>
+    /// Define el path actual del target con una lista de puntos (waypoints).
+    /// </summary>
     void SetPath(params Vector3[] points)
     {
         ClearPath();
@@ -206,6 +219,9 @@ public class Level1Manager : MonoBehaviour
         isMovingTarget = true;
     }
 
+    /// <summary>
+    /// Comprueba si el tramo a->b está bloqueado (SphereCast). Se usa para elegir altura de transporte.
+    /// </summary>
     bool SegmentBlocked(Vector3 a, Vector3 b)
     {
         if (!avoidObstaclesForTarget) return false;
@@ -218,6 +234,10 @@ public class Level1Manager : MonoBehaviour
         return Physics.SphereCast(a, targetAvoidRadius, d, out _, dist, obstacleLayerForTarget);
     }
 
+    /// <summary>
+    /// Calcula una Y de transporte que permita ir horizontal sin chocar:
+    /// si el segmento está bloqueado, sube la altura y reintenta.
+    /// </summary>
     float ComputeCarryYForReturn(Vector3 start, Vector3 endXZ, float initialY)
     {
         float y = initialY;
@@ -248,7 +268,7 @@ public class Level1Manager : MonoBehaviour
             return;
         }
 
-        // Para ir al core: directo (a ti te iba bien)
+        // Camino al core: directo.
         SetPath(currentCore.transform.position);
     }
 
@@ -256,21 +276,19 @@ public class Level1Manager : MonoBehaviour
     {
         if (target == null || depositPoint == null) return;
 
-        // Punto de aproximación (sobre el depósito)
+        // Punto “sobre el depósito” para llegar con margen.
         depositApproachPoint = depositPoint.position + Vector3.up * liftHeight;
         depositApproachPoint = ClampToArmReach(depositApproachPoint);
 
-        // Ruta: subir -> horizontal -> acercarse al punto sobre depósito
+        // Ruta: subir -> horizontal -> (si hace falta) bajar hacia el punto sobre depósito.
         Vector3 start = target.position;
         Vector3 endXZ = depositApproachPoint;
 
-        // Elegimos una Y de transporte que NO esté bloqueada en el tramo horizontal
         float yCarry = ComputeCarryYForReturn(start, endXZ, carryHeight);
 
         Vector3 wpUp = new Vector3(start.x, yCarry, start.z);
         Vector3 wpOver = new Vector3(endXZ.x, yCarry, endXZ.z);
 
-        // Si al final la aproximación sobre depósito está más baja que el carry, bajamos con un último waypoint
         SetPath(wpUp, wpOver, depositApproachPoint);
     }
 
@@ -311,6 +329,7 @@ public class Level1Manager : MonoBehaviour
         if (currentCore == null) return;
         if (ccdSolver == null || ccdSolver.joints == null || ccdSolver.joints.Length == 0) return;
 
+        // Parent al end-effector para que “viaje” con el brazo.
         Transform endEffector = ccdSolver.joints[ccdSolver.joints.Length - 1];
         currentCore.transform.SetParent(endEffector);
         currentCore.transform.localPosition = Vector3.zero;
@@ -380,6 +399,7 @@ public class Level1Manager : MonoBehaviour
         coresDeposited++;
         isMovingTarget = false;
 
+        // Suelta el core y lo coloca exactamente en el punto de depósito.
         currentCore.transform.SetParent(null);
         currentCore.transform.position = depositPoint.position;
         currentCore.Deposit();
@@ -475,21 +495,20 @@ public class Level1Manager : MonoBehaviour
         Debug.Log("======================");
     }
 
+    /// <summary>
+    /// Callback que se dispara desde DataCore cuando detecta el end-effector en trigger.
+    /// </summary>
     public void OnDataCoreCollected(DataCore core)
     {
         if (core == null) return;
 
-        // Solo nos interesa cuando estamos yendo a por núcleos
         if (currentState != State.APPROACHING_CORE) return;
 
-        // Si todavía no teníamos core asignado, lo asignamos
         if (currentCore == null)
         {
             currentCore = core;
         }
 
-        // (Opcional) Si quieres, podrías forzar que deje de moverse el target aquí:
-        // isMovingTarget = false;
+        // isMovingTarget = false; // (comentado en tu código)
     }
-
 }
