@@ -92,7 +92,7 @@ public class Level1Manager : MonoBehaviour
         Debug.Log("=== NIVEL 1 INICIANDO (CCD + Waypoints) ===");
 
         if (dataCores == null || dataCores.Length == 0)
-            dataCores = FindObjectsOfType<DataCore>();
+            dataCores = FindObjectsByType<DataCore>(FindObjectsSortMode.None);
 
         totalCores = dataCores.Length;
         coresCollected = 0;

@@ -6,16 +6,14 @@ public class level3_CCDIK : MonoBehaviour
     [Header("Chain (root -> ... -> end)")]
     public Transform[] joints;
 
-    [Header("Visuals (optional, NO children)")]
-    [Tooltip("Un cilindro por segmento: size = joints.Length - 1. NO deben ser hijos de joints.")]
+    [Header("Visuals")]
     public Transform[] segmentVisuals;
-    [Tooltip("Altura del mesh del segmento en su escala Y (Cilindro Unity = 2).")]
     public float segmentMeshHeight = 2f;
 
     [Header("Target")]
     public Transform target;
 
-    [Header("CCD Params")]
+    [Header("CCD Parameters")]
     [Min(1)] public int maxIterations = 10;
     [Min(0f)] public float tolerance = 0.01f;
     [Range(0f, 1f)] public float rotationStep = 1f;
@@ -30,7 +28,6 @@ public class level3_CCDIK : MonoBehaviour
 
     void Start()
     {
-        ValidateNoJointHierarchyChain();
         InitializeSegmentLengths();
         UpdateSegmentVisuals();
 
@@ -40,7 +37,6 @@ public class level3_CCDIK : MonoBehaviour
     private IEnumerator AssignTarget()
     {
         yield return new WaitForSeconds(0.01f);
-        Debug.Log("Asignando target...");
         var go = GameObject.Find("Left Target");
         if (go) target = go.transform;
     }
@@ -49,7 +45,6 @@ public class level3_CCDIK : MonoBehaviour
     {
         if (joints == null || joints.Length < 2)
         {
-            Debug.LogError("level3_CCDIK: Necesitas al menos 2 joints");
             return;
         }
 
@@ -159,7 +154,7 @@ public class level3_CCDIK : MonoBehaviour
         }
     }
 
-    // ---- Visuals sin jerarquía (segmentos independientes) ----
+    // ---- Visuals sin jerarquía ----
     void UpdateSegmentVisuals()
     {
         if (segmentVisuals == null || segmentVisuals.Length == 0) return;
@@ -199,28 +194,6 @@ public class level3_CCDIK : MonoBehaviour
             float denom = (segmentMeshHeight <= 1e-6f) ? 2f : segmentMeshHeight;
             s.y = dist / denom;
             seg.localScale = s;
-        }
-    }
-
-    // ---- Validación: no cadena padre->hijo entre joints ----
-    void ValidateNoJointHierarchyChain()
-    {
-        if (joints == null) return;
-
-        for (int i = 0; i < joints.Length; i++)
-        {
-            if (joints[i] == null) continue;
-
-            // si algún joint tiene como padre a otro joint del array => estáis usando jerarquía de cadena
-            for (int j = 0; j < joints.Length; j++)
-            {
-                if (i == j || joints[j] == null) continue;
-                if (joints[i].parent == joints[j])
-                {
-                    Debug.LogError("level3_CCDIK: Hay joints parentados entre sí. En Nivel 3 NO se puede usar jerarquía (cadena).");
-                    return;
-                }
-            }
         }
     }
 
