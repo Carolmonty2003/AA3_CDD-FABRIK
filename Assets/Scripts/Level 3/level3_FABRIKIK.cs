@@ -27,17 +27,12 @@ public class level3_FABRIKIK : MonoBehaviour
     public float lastDistanceToTarget;
     public float totalReach;
 
-    [Header("Visualización")]
-    public bool drawGizmos = true;
-    public Color gizmoColor = Color.green;
-
     Vector3[] positions;
     float[] lengths;
     Vector3 basePosition;
 
     void Start()
     {
-        ValidateNoJointHierarchyChain();
         InitializeFABRIK();
         UpdateSegmentVisuals();
         StartCoroutine(AssignTarget());
@@ -46,7 +41,6 @@ public class level3_FABRIKIK : MonoBehaviour
     private IEnumerator AssignTarget()
     {
         yield return new WaitForSeconds(0.01f);
-        Debug.Log("Asignando target...");
         var go = GameObject.Find("Right Target");
             if (go) target = go.transform;
     }
@@ -55,7 +49,6 @@ public class level3_FABRIKIK : MonoBehaviour
     {
         if (joints == null || joints.Length < 2)
         {
-            Debug.LogError("level3_FABRIKIK: Necesitas al menos 2 joints");
             return;
         }
 
@@ -146,7 +139,7 @@ public class level3_FABRIKIK : MonoBehaviour
         for (int i = 0; i < joints.Length; i++)
             joints[i].position = positions[i];
 
-        // (Opcional) rotación del joint: no depende de hijos
+        // Rotación del joint: no depende de hijos
         for (int i = 0; i < joints.Length - 1; i++)
         {
             Vector3 direction = positions[i + 1] - positions[i];
@@ -205,113 +198,6 @@ public class level3_FABRIKIK : MonoBehaviour
             float denom = (segmentMeshHeight <= 1e-6f) ? 2f : segmentMeshHeight;
             s.y = dist / denom;
             seg.localScale = s;
-        }
-    }
-
-    // ---- Validación: no cadena padre->hijo entre joints ----
-    void ValidateNoJointHierarchyChain()
-    {
-        if (joints == null) return;
-
-        for (int i = 0; i < joints.Length; i++)
-        {
-            if (joints[i] == null) continue;
-
-            for (int j = 0; j < joints.Length; j++)
-            {
-                if (i == j || joints[j] == null) continue;
-                if (joints[i].parent == joints[j])
-                {
-                    Debug.LogError("level3_FABRIKIK: Hay joints parentados entre sí. En Nivel 3 NO se puede usar jerarquía (cadena).");
-                    return;
-                }
-            }
-        }
-    }
-
-    // ---- Gizmos: círculo sin MathLite.Sin/Cos ----
-    static readonly float TAU = 2f * MathLite.PI;
-
-    static float WrapPi(float x) => MathLite.Repeat(x + MathLite.PI, TAU) - MathLite.PI;
-
-    static float SinApprox(float x)
-    {
-        x = WrapPi(x);
-        if (x > MathLite.PI * 0.5f) x = MathLite.PI - x;
-        else if (x < -MathLite.PI * 0.5f) x = -MathLite.PI - x;
-
-        float x2 = x * x;
-        float x3 = x * x2;
-        float x5 = x3 * x2;
-        float x7 = x5 * x2;
-        return x - x3 * (1f / 6f) + x5 * (1f / 120f) - x7 * (1f / 5040f);
-    }
-
-    static float CosApprox(float x)
-    {
-        x = WrapPi(x);
-        float sign = 1f;
-        x = MathLite.Abs(x);
-        if (x > MathLite.PI * 0.5f)
-        {
-            x = MathLite.PI - x;
-            sign = -1f;
-        }
-
-        float x2 = x * x;
-        float x4 = x2 * x2;
-        float x6 = x4 * x2;
-        float c = 1f - x2 * 0.5f + x4 * (1f / 24f) - x6 * (1f / 720f);
-        return sign * c;
-    }
-
-    void OnDrawGizmos()
-    {
-        if (!drawGizmos || joints == null || joints.Length == 0) return;
-
-        Gizmos.color = gizmoColor;
-
-        for (int i = 0; i < joints.Length - 1; i++)
-        {
-            if (joints[i] != null && joints[i + 1] != null)
-            {
-                Gizmos.DrawLine(joints[i].position, joints[i + 1].position);
-                Gizmos.DrawWireSphere(joints[i].position, 0.05f);
-            }
-        }
-
-        if (joints.Length > 0 && joints[joints.Length - 1] != null)
-            Gizmos.DrawWireSphere(joints[joints.Length - 1].position, 0.08f);
-
-        if (target != null)
-        {
-            Gizmos.color = Color.red;
-            Gizmos.DrawWireSphere(target.position, 0.1f);
-
-            if (Application.isPlaying && joints.Length > 0)
-            {
-                Gizmos.color = new Color(1f, 1f, 0f, 0.3f);
-                DrawCircle_NoTrig(joints[0].position, totalReach, 32);
-            }
-
-            if (joints.Length > 0)
-            {
-                Gizmos.color = Color.yellow;
-                Gizmos.DrawLine(joints[joints.Length - 1].position, target.position);
-            }
-        }
-    }
-
-    void DrawCircle_NoTrig(Vector3 center, float radius, int segments)
-    {
-        Vector3 prev = center + new Vector3(radius, 0, 0);
-
-        for (int i = 1; i <= segments; i++)
-        {
-            float a = (float)i / segments * TAU;
-            Vector3 next = center + new Vector3(CosApprox(a) * radius, 0f, SinApprox(a) * radius);
-            Gizmos.DrawLine(prev, next);
-            prev = next;
         }
     }
 }
