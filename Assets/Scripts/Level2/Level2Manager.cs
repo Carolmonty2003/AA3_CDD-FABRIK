@@ -7,37 +7,37 @@ public class Level2Manager : MonoBehaviour
     [Serializable]
     public class Step
     {
-        // Botón que toca pulsar en este paso
+        // Botï¿½n que toca pulsar en este paso
         public SequenceButton expectedButton;
 
-        // Láseres que se apagan/encienden al completar el paso
+        // Lï¿½seres que se apagan/encienden al completar el paso
         public Laser[] disableLasers;
     }
 
     [Header("References")]
     [SerializeField] private Transform ikTarget; // Objeto que tiene el componente FABRIKIK
     [SerializeField] private Transform endEffector; // Punta del brazo
-    [SerializeField] private Step[] steps; // Secuencia de pasos (botón + desactivacicón de laseres)
+    [SerializeField] private Step[] steps; // Secuencia de pasos (botï¿½n + desactivacicï¿½n de laseres)
 
     [Header("Movement")]
     [SerializeField] private float moveSpeed = 2f;
     [SerializeField] private float pressDistance = 0.10f;
-    [SerializeField] private float stopAfterPressSeconds = 1.0f; // Tiempo de espera tras pulsar un botón
+    [SerializeField] private float stopAfterPressSeconds = 1.0f; // Tiempo de espera tras pulsar un botï¿½n
 
     [Header("Avoidance (target)")]
-    [SerializeField] private LayerMask obstacleMask; // Layer de obstáculos a evitar
-    [SerializeField] private float avoidanceRadius = 0.5f; // Radio de evitación
-    [SerializeField] private float avoidanceLookAhead = 1.0f; // Distancia para evitar obstáculos
-    [SerializeField] private float avoidanceStrength = 2.0f; // Fuerza de desviación al evitar
-    [SerializeField] private float emergencyPushStrength = 3.0f; // Fuerza de empuje al estar rozando/penetrando un obstáculo
+    [SerializeField] private LayerMask obstacleMask; // Layer de obstï¿½culos a evitar
+    [SerializeField] private float avoidanceRadius = 0.5f; // Radio de evitaciï¿½n
+    [SerializeField] private float avoidanceLookAhead = 1.0f; // Distancia para evitar obstï¿½culos
+    [SerializeField] private float avoidanceStrength = 2.0f; // Fuerza de desviaciï¿½n al evitar
+    [SerializeField] private float emergencyPushStrength = 3.0f; // Fuerza de empuje al estar rozando/penetrando un obstï¿½culo
 
     [Header("Avoidance (whole chain)")]
-    [SerializeField] private float chainRadius = 0.5f; // Radio de la cápsula para evitar obstáculos con la cadena
+    [SerializeField] private float chainRadius = 0.5f; // Radio de la cï¿½psula para evitar obstï¿½culos con la cadena
     [SerializeField] private float chainPushStrength = 4.0f; // Fuerza de empuje para toda la cadena
-    [SerializeField] private int bufSize = 32; // Tamaño del buffer reutilizable para OverlapCapsuleNonAlloc
+    [SerializeField] private int bufSize = 32; // Tamaï¿½o del buffer reutilizable para OverlapCapsuleNonAlloc
 
     private FABRIKIK fabrik;
-    private Transform runtimeTarget; // Target creado si FABRIK no tiene target o si el target es un joint (mala práctica)
+    private Transform runtimeTarget; // Target creado si FABRIK no tiene target o si el target es un joint (mala prï¿½ctica)
     private int currentStep;
     private Coroutine runner;
 
@@ -55,7 +55,7 @@ public class Level2Manager : MonoBehaviour
 
     private void Start()
     {
-        // Coloca el target del fabrik en la posición inicial de la punta
+        // Coloca el target del fabrik en la posiciï¿½n inicial de la punta
         fabrik.target.position = endEffector.position;
         fabrik.isActive = true;
 
@@ -74,7 +74,7 @@ public class Level2Manager : MonoBehaviour
             runtimeTarget = go.transform;
         }
 
-        // Coloca ese target donde está la punta para evitar saltos
+        // Coloca ese target donde estï¿½ la punta para evitar saltos
         if (fabrik.joints != null && fabrik.joints.Length > 0 && fabrik.joints[fabrik.joints.Length - 1] != null)
             runtimeTarget.position = fabrik.joints[fabrik.joints.Length - 1].position;
         else
@@ -85,18 +85,17 @@ public class Level2Manager : MonoBehaviour
 
     private IEnumerator RunSequence()
     {
-        // Lógica principal: para cada step -> ir al botón -> pulsar -> desactivar láseres -> siguiente
+        // Lï¿½gica principal: para cada step -> ir al botï¿½n -> pulsar -> desactivar lï¿½seres -> siguiente
         while (currentStep < steps.Length)
         {
             var step = steps[currentStep];
-            if (step == null || step.expectedButton == null) yield break;
 
-            // Solo el botón del step actual puede aceptar pulsación
+            // Solo el botï¿½n del step actual puede aceptar pulsaciï¿½n
             SetOnlyCurrentButtonPressable(currentStep);
 
             Vector3 goal = step.expectedButton.GetPressWorldPosition();
 
-            // Mueve el end effector hasta estar cerca del botón
+            // Mueve el end effector hasta estar cerca del botï¿½n
             while (Vectors.Distance(endEffector.position, goal) > pressDistance)
             {
                 MoveFabrikTargetTowards(goal);
@@ -125,23 +124,23 @@ public class Level2Manager : MonoBehaviour
         Vector3 desiredDir = Vectors.Normalize(toGoal);
         float castDist = MathLite.Min(avoidanceLookAhead, toGoalMag);
 
-        // Dirección base hacia el objetivo
+        // Direcciï¿½n base hacia el objetivo
         Vector3 steering = desiredDir;
 
-        // 1) Si hay obstáculo delante, probamos varias direcciones y elegimos la que más despeje tenga sin alejarse del target.
-        // Devuelve true si el SphereCast choca con un laser (cápsula)
+        // 1) Si hay obstï¿½culo delante, probamos varias direcciones y elegimos la que mï¿½s despeje tenga sin alejarse del target.
+        // Devuelve true si el SphereCast choca con un laser (cï¿½psula)
         if (SphereCastHitsCapsule(from, desiredDir, castDist))
         {
-            // Prueba varias direcciones de evasión y devuelve la mejor
+            // Prueba varias direcciones de evasiï¿½n y devuelve la mejor
             steering = ChooseBestAvoidanceDirection(from, desiredDir, castDist);
         }
 
-        // 2) Si ya está rozando/penetrando un obstáculo, empuja hacia fuera
+        // 2) Si ya estï¿½ rozando/penetrando un obstï¿½culo, empuja hacia fuera
         Vector3 emergency = ComputeEmergencyPush(from);
         if (Vectors.SqrMagnitude(emergency) > 1e-8f)
             steering = Vectors.Normalize(steering + Vectors.Normalize(emergency) * emergencyPushStrength);
 
-        // 3) Evitación para toda la cadena: revisa cada segmento del brazo y empuja fuera
+        // 3) Evitaciï¿½n para toda la cadena: revisa cada segmento del brazo y empuja fuera
         Vector3 chainPush = ComputeChainPush();
         if (Vectors.SqrMagnitude(chainPush) > 1e-8f)
             steering = Vectors.Normalize(steering + Vectors.Normalize(chainPush) * chainPushStrength);
@@ -153,7 +152,7 @@ public class Level2Manager : MonoBehaviour
         fabrik.target.position = from + steering * step;
     }
 
-    // Devuelve true si el SphereCast choca con un laser (cápsula)
+    // Devuelve true si el SphereCast choca con un laser (cï¿½psula)
     private bool SphereCastHitsCapsule(Vector3 from, Vector3 dir, float dist)
     {
         if (Physics.SphereCast(from, avoidanceRadius, dir, out RaycastHit hit, dist, obstacleMask, QueryTriggerInteraction.Collide))
@@ -161,7 +160,7 @@ public class Level2Manager : MonoBehaviour
         return false;
     }
 
-    // Prueba varias direcciones de evasión y devuelve la mejor
+    // Prueba varias direcciones de evasiï¿½n y devuelve la mejor
     private Vector3 ChooseBestAvoidanceDirection(Vector3 from, Vector3 desiredDir, float castDist)
     {
         Vector3 up = Vectors.Up();
@@ -174,7 +173,7 @@ public class Level2Manager : MonoBehaviour
 
         Vector3 down = -up;
 
-        // Candidatos a dirección: directa + laterales + arriba/abajo + diagonales
+        // Candidatos a direcciï¿½n: directa + laterales + arriba/abajo + diagonales
         Vector3[] candidates = new Vector3[]
         {
             desiredDir,
@@ -194,13 +193,13 @@ public class Level2Manager : MonoBehaviour
         float bestScore = -1f;
         Vector3 bestDir = desiredDir;
 
-        // Evalúa cada candidato
+        // Evalï¿½a cada candidato
         for (int i = 0; i < candidates.Length; i++)
         {
             Vector3 c = candidates[i];
             float clearance = ClearanceCapsule(from, c, castDist);
 
-            // Distancia libre * alineación con dirección deseada
+            // Distancia libre * alineaciï¿½n con direcciï¿½n deseada
             float align = MathLite.Max(0f, Vector3.Dot(c, desiredDir)); // 0..1
             float score = clearance * (0.35f + 0.65f * align);
 
@@ -211,11 +210,11 @@ public class Level2Manager : MonoBehaviour
             }
         }
 
-        // Devuelve la mejor dirección encontrada
+        // Devuelve la mejor direcciï¿½n encontrada
         return bestDir;
     }
 
-    // Si choca con una cápsula, devuelve distancia al hit, si no dist
+    // Si choca con una cï¿½psula, devuelve distancia al hit, si no dist
     private float ClearanceCapsule(Vector3 from, Vector3 dir, float dist)
     {
         if (Physics.SphereCast(from, avoidanceRadius, dir, out RaycastHit h, dist, obstacleMask, QueryTriggerInteraction.Collide)
@@ -225,19 +224,19 @@ public class Level2Manager : MonoBehaviour
         return dist;
     }
 
-    // Calcula un vector de empuje fuera de obstáculos cercanos al target
+    // Calcula un vector de empuje fuera de obstï¿½culos cercanos al target
     private Vector3 ComputeEmergencyPush(Vector3 pos)
     {
-        // Busca obstáculos cercanos
+        // Busca obstï¿½culos cercanos
         int hits = Physics.OverlapSphereNonAlloc(pos, avoidanceRadius * 1.2f, overlapBuffer, obstacleMask, QueryTriggerInteraction.Collide);
         if (hits <= 0) return Vector3.zero;
 
         Vector3 push = new Vector3(0,0,0);
 
-        // Para cada obstáculo cercano, calcula empuje fuera
+        // Para cada obstï¿½culo cercano, calcula empuje fuera
         for (int i = 0; i < hits; i++)
         {
-            // Solo cápsulas (láseres)
+            // Solo cï¿½psulas (lï¿½seres)
             var col = overlapBuffer[i] as CapsuleCollider;
             if (col == null) continue;
 
@@ -247,7 +246,7 @@ public class Level2Manager : MonoBehaviour
             float d = Vectors.Magnitude(away);
             if (d < 0.0001f) continue;
 
-            // Empuja fuera, más cuanto más cerca esté
+            // Empuja fuera, mï¿½s cuanto mï¿½s cerca estï¿½
             push += Vectors.Normalize(away) * (1f / (d + 0.001f));
         }
 
@@ -255,11 +254,10 @@ public class Level2Manager : MonoBehaviour
         return push;
     }
 
-    // Calcula un vector de empuje fuera de obstáculos para toda la cadena
+    // Calcula un vector de empuje fuera de obstï¿½culos para toda la cadena
     private Vector3 ComputeChainPush()
     {
         var joints = fabrik.joints;
-        if (joints == null || joints.Length < 2) return Vector3.zero;
 
         Vector3 total = Vector3.zero;
         int contributions = 0;
@@ -267,20 +265,19 @@ public class Level2Manager : MonoBehaviour
         // Revisa cada segmento de la cadena
         for (int i = 0; i < joints.Length - 1; i++)
         {
-            Transform aT = joints[i];
-            Transform bT = joints[i + 1];
-            if (aT == null || bT == null) continue;
+            Vector3 a = joints[i].position;
+            Vector3 b = joints[i + 1].position;
 
             Vector3 a = aT.position;
             Vector3 b = bT.position;
 
-            // Busca obstáculos cerca del segmento de la cadena
+            // Busca obstï¿½culos cerca del segmento de la cadena
             int hits = Physics.OverlapCapsuleNonAlloc(a, b, chainRadius, overlapBuffer, obstacleMask, QueryTriggerInteraction.Collide);
             if (hits <= 0) continue;
 
             Vector3 mid = (a + b) * 0.5f;
 
-            // Para cada obstáculo cercano, calcula empuje fuera
+            // Para cada obstï¿½culo cercano, calcula empuje fuera
             for (int h = 0; h < hits; h++)
             {
                 var col = overlapBuffer[h] as CapsuleCollider;
@@ -303,25 +300,20 @@ public class Level2Manager : MonoBehaviour
         return total;
     }
 
-    // Aplica los cambios del step (desactivar láseres)
+    // Aplica los cambios del step (desactivar lï¿½seres)
     private void ApplyStep(Step step)
     {
-        // Desactiva los láseres indicados en el step
+        // Desactiva los lï¿½seres indicados en el step
         if (step.disableLasers != null)
             for (int i = 0; i < step.disableLasers.Length; i++)
                 if (step.disableLasers[i] != null) step.disableLasers[i].SetActive(false);
     }
 
-    // Solo el botón del stepIndex acepta pulsación, el resto se bloquean
+    // Solo el botï¿½n del stepIndex acepta pulsaciï¿½n, el resto se bloquean
     private void SetOnlyCurrentButtonPressable(int stepIndex)
     {
-        if (steps == null) return;
-
         for (int i = 0; i < steps.Length; i++)
-        {
-            var btn = steps[i]?.expectedButton;
-            if (btn != null) btn.AcceptPress = (i == stepIndex);
-        }
+            steps[i].expectedButton.AcceptPress = (i == stepIndex);
     }
 
     // UI debug
@@ -361,8 +353,8 @@ public class Level2Manager : MonoBehaviour
             float dist = Vector3.Distance(endEffector.position, goal);
 
             GUILayout.Space(8);
-            GUILayout.Label("Goal (botón) pos: " + goal.ToString("F3"));
-            GUILayout.Label("Distancia al botón: " + dist.ToString("F4"));
+            GUILayout.Label("Goal (botï¿½n) pos: " + goal.ToString("F3"));
+            GUILayout.Label("Distancia al botï¿½n: " + dist.ToString("F4"));
             GUILayout.Label("AcceptPress: " + steps[currentStep].expectedButton.AcceptPress);
         }
         else
