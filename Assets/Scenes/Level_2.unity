@@ -4396,12 +4396,10 @@ MonoBehaviour:
     - {fileID: 155749953}
     - {fileID: 729373136}
     - {fileID: 512254679}
-    enableLasers: []
   - expectedButton: {fileID: 481870069}
     disableLasers:
     - {fileID: 1274413919}
     - {fileID: 1496670338}
-    enableLasers: []
   - expectedButton: {fileID: 528391691}
     disableLasers:
     - {fileID: 1852644937}
@@ -4424,7 +4422,6 @@ MonoBehaviour:
     - {fileID: 782459308}
     - {fileID: 666758692}
     - {fileID: 1370133493}
-    enableLasers: []
   moveSpeed: 2
   pressDistance: 0.1
   stopAfterPressSeconds: 1
@@ -4437,7 +4434,7 @@ MonoBehaviour:
   emergencyPushStrength: 3
   chainRadius: 0.5
   chainPushStrength: 4
-  overlapBufferSize: 32
+  bufSize: 32
 --- !u!4 &1844711648
 Transform:
   m_ObjectHideFlags: 0
