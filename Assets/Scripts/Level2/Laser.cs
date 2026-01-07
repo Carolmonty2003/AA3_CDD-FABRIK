@@ -3,14 +3,16 @@ using UnityEngine;
 public class Laser : MonoBehaviour
 {
     [Header("Auto-detect if empty")]
+    // Si están vacías, se auto-rellenan buscando en hijos.
     [SerializeField] private Collider[] hitColliders;
     [SerializeField] private Renderer[] visuals;
-    [SerializeField] private Behaviour[] extraBehaviours;
 
     [SerializeField] private bool activeOnStart = true;
 
+    // Estado actual.
     public bool IsActive { get; private set; }
 
+    // Si no se assignanron colliders o renderers en el inspector, se buscan automáticamente en los hijos.
     private void Awake()
     {
         if (hitColliders == null || hitColliders.Length == 0)
@@ -22,6 +24,7 @@ public class Laser : MonoBehaviour
 
     private void Start()
     {
+        // Aplica el estado inicial configurado.
         SetActive(activeOnStart);
     }
 
@@ -29,6 +32,7 @@ public class Laser : MonoBehaviour
     {
         IsActive = active;
 
+        // Activa/desactiva colisiones i visuales.
         if (hitColliders != null)
             for (int i = 0; i < hitColliders.Length; i++)
                 if (hitColliders[i] != null) hitColliders[i].enabled = active;
@@ -36,9 +40,5 @@ public class Laser : MonoBehaviour
         if (visuals != null)
             for (int i = 0; i < visuals.Length; i++)
                 if (visuals[i] != null) visuals[i].enabled = active;
-
-        if (extraBehaviours != null)
-            for (int i = 0; i < extraBehaviours.Length; i++)
-                if (extraBehaviours[i] != null) extraBehaviours[i].enabled = active;
     }
 }

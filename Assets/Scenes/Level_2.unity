@@ -501,7 +501,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   hitColliders: []
   visuals: []
-  extraBehaviours: []
   activeOnStart: 1
 --- !u!136 &155749954
 CapsuleCollider:
@@ -628,7 +627,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   hitColliders: []
   visuals: []
-  extraBehaviours: []
   activeOnStart: 1
 --- !u!136 &275193669
 CapsuleCollider:
@@ -1152,7 +1150,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   hitColliders: []
   visuals: []
-  extraBehaviours: []
   activeOnStart: 1
 --- !u!136 &432000418
 CapsuleCollider:
@@ -1279,7 +1276,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   hitColliders: []
   visuals: []
-  extraBehaviours: []
   activeOnStart: 1
 --- !u!136 &455680746
 CapsuleCollider:
@@ -1467,7 +1463,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 67361ee1e846cb44e91164d906fed680, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  pressPoint: {fileID: 0}
 --- !u!135 &481870070
 SphereCollider:
   m_ObjectHideFlags: 0
@@ -1606,7 +1601,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   hitColliders: []
   visuals: []
-  extraBehaviours: []
   activeOnStart: 1
 --- !u!136 &504963039
 CapsuleCollider:
@@ -1733,7 +1727,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   hitColliders: []
   visuals: []
-  extraBehaviours: []
   activeOnStart: 1
 --- !u!136 &512254680
 CapsuleCollider:
@@ -1945,7 +1938,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 67361ee1e846cb44e91164d906fed680, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  pressPoint: {fileID: 0}
 --- !u!135 &528391692
 SphereCollider:
   m_ObjectHideFlags: 0
@@ -2155,7 +2147,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   hitColliders: []
   visuals: []
-  extraBehaviours: []
   activeOnStart: 1
 --- !u!136 &647736872
 CapsuleCollider:
@@ -2282,7 +2273,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   hitColliders: []
   visuals: []
-  extraBehaviours: []
   activeOnStart: 1
 --- !u!136 &666758693
 CapsuleCollider:
@@ -2443,7 +2433,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   hitColliders: []
   visuals: []
-  extraBehaviours: []
   activeOnStart: 1
 --- !u!136 &729373137
 CapsuleCollider:
@@ -2608,7 +2597,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   hitColliders: []
   visuals: []
-  extraBehaviours: []
   activeOnStart: 1
 --- !u!136 &782459309
 CapsuleCollider:
@@ -3031,7 +3019,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 67361ee1e846cb44e91164d906fed680, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  pressPoint: {fileID: 0}
 --- !u!135 &978763542
 SphereCollider:
   m_ObjectHideFlags: 0
@@ -3176,7 +3163,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   hitColliders: []
   visuals: []
-  extraBehaviours: []
   activeOnStart: 1
 --- !u!136 &1149012666
 CapsuleCollider:
@@ -3303,7 +3289,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   hitColliders: []
   visuals: []
-  extraBehaviours: []
   activeOnStart: 1
 --- !u!136 &1173772031
 CapsuleCollider:
@@ -3436,7 +3421,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   hitColliders: []
   visuals: []
-  extraBehaviours: []
   activeOnStart: 1
 --- !u!136 &1274413920
 CapsuleCollider:
@@ -3563,7 +3547,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   hitColliders: []
   visuals: []
-  extraBehaviours: []
   activeOnStart: 1
 --- !u!136 &1370133494
 CapsuleCollider:
@@ -3690,7 +3673,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   hitColliders: []
   visuals: []
-  extraBehaviours: []
   activeOnStart: 1
 --- !u!136 &1391627592
 CapsuleCollider:
@@ -3817,7 +3799,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   hitColliders: []
   visuals: []
-  extraBehaviours: []
   activeOnStart: 1
 --- !u!136 &1403851617
 CapsuleCollider:
@@ -3944,7 +3925,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   hitColliders: []
   visuals: []
-  extraBehaviours: []
   activeOnStart: 1
 --- !u!136 &1496670339
 CapsuleCollider:
@@ -4503,7 +4483,6 @@ MonoBehaviour:
   hitColliders:
   - {fileID: 1852644938}
   visuals: []
-  extraBehaviours: []
   activeOnStart: 1
 --- !u!136 &1852644938
 CapsuleCollider:
@@ -4630,7 +4609,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   hitColliders: []
   visuals: []
-  extraBehaviours: []
   activeOnStart: 1
 --- !u!136 &1890231000
 CapsuleCollider:
@@ -4757,7 +4735,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   hitColliders: []
   visuals: []
-  extraBehaviours: []
   activeOnStart: 1
 --- !u!136 &1893770365
 CapsuleCollider:
@@ -4998,7 +4975,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   hitColliders: []
   visuals: []
-  extraBehaviours: []
   activeOnStart: 1
 --- !u!136 &1957012877
 CapsuleCollider:

@@ -13,7 +13,7 @@ public class Level2Manager : MonoBehaviour
     }
 
     [Header("References")]
-    [SerializeField] private Transform ikTarget;      // Arm (FABRIK)
+    [SerializeField] private Transform ikTarget;
     [SerializeField] private Transform endEffector;
     [SerializeField] private Step[] steps;
 
@@ -23,19 +23,18 @@ public class Level2Manager : MonoBehaviour
     [SerializeField] private float stopAfterPressSeconds = 1.0f;
 
     [Header("Avoidance (target)")]
-    [SerializeField] private LayerMask obstacleMask;           // Layer Laser
+    [SerializeField] private LayerMask obstacleMask;
     [SerializeField] private float avoidanceRadius = 0.10f;
     [SerializeField] private float avoidanceLookAhead = 0.60f;
     [SerializeField] private float avoidanceStrength = 2.0f;
     [SerializeField] private float emergencyPushStrength = 3.0f;
 
     [Header("Avoidance (whole chain)")]
-    [SerializeField] private float chainRadius = 0.08f;        // “grosor” del brazo para el chequeo cápsula
-    [SerializeField] private float chainPushStrength = 4.0f;   // cuánto prioriza sacar el brazo de los láseres
+    [SerializeField] private float chainRadius = 0.08f;
+    [SerializeField] private float chainPushStrength = 4.0f;
     [SerializeField] private int overlapBufferSize = 32;
 
     private FABRIKIK fabrik;
-    private Transform runtimeTarget;
     private int currentStep;
     private Coroutine runner;
 
@@ -43,77 +42,23 @@ public class Level2Manager : MonoBehaviour
 
     private void Awake()
     {
-        int bufSize = overlapBufferSize;
-        if (bufSize < 8) bufSize = 8;
-        overlapBuffer = new Collider[bufSize];
+        overlapBuffer = new Collider[overlapBufferSize];
 
-        BindFabrik();
-        EnsureFabrikTarget();
+        fabrik = ikTarget.GetComponent<FABRIKIK>();
 
-        if (fabrik != null && endEffector == null && fabrik.joints != null && fabrik.joints.Length > 0)
-            endEffector = fabrik.joints[fabrik.joints.Length - 1];
+        // El target del FABRIK será ESTE GameObject (no hay que asignar nada extra)
+        fabrik.target = transform;
 
         ResetSequence();
     }
 
     private void Start()
     {
-        if (!IsReady()) return;
-
-        // Evitar salto: empieza el target donde está la punta
+        // Evitar salto: el target empieza donde está la punta
         fabrik.target.position = endEffector.position;
         fabrik.isActive = true;
 
         runner = StartCoroutine(RunSequence());
-    }
-
-    private void BindFabrik()
-    {
-        if (ikTarget != null)
-            fabrik = ikTarget.GetComponent<FABRIKIK>();
-
-        if (fabrik == null)
-            fabrik = FindFirstObjectByType<FABRIKIK>();
-    }
-
-    private void EnsureFabrikTarget()
-    {
-        if (fabrik == null) return;
-
-        bool needsTarget = fabrik.target == null || IsJointTransform(fabrik, fabrik.target);
-        if (!needsTarget) return;
-
-        if (runtimeTarget == null)
-        {
-            var go = new GameObject("FABRIK_RuntimeTarget");
-            go.hideFlags = HideFlags.HideAndDontSave;
-            runtimeTarget = go.transform;
-        }
-
-        if (fabrik.joints != null && fabrik.joints.Length > 0 && fabrik.joints[fabrik.joints.Length - 1] != null)
-            runtimeTarget.position = fabrik.joints[fabrik.joints.Length - 1].position;
-        else
-            runtimeTarget.position = fabrik.transform.position;
-
-        fabrik.target = runtimeTarget;
-    }
-
-    private static bool IsJointTransform(FABRIKIK f, Transform t)
-    {
-        if (f == null || t == null || f.joints == null) return false;
-        for (int i = 0; i < f.joints.Length; i++)
-            if (f.joints[i] == t) return true;
-        return false;
-    }
-
-    private bool IsReady()
-    {
-        if (fabrik == null) return false;
-        if (fabrik.target == null) return false;
-        if (endEffector == null) return false;
-        if (steps == null || steps.Length == 0) return false;
-        if (fabrik.joints == null || fabrik.joints.Length < 2) return false;
-        return true;
     }
 
     private IEnumerator RunSequence()
@@ -121,7 +66,6 @@ public class Level2Manager : MonoBehaviour
         while (currentStep < steps.Length)
         {
             var step = steps[currentStep];
-            if (step == null || step.expectedButton == null) yield break;
 
             SetOnlyCurrentButtonPressable(currentStep);
 
@@ -130,7 +74,7 @@ public class Level2Manager : MonoBehaviour
             while (Vectors.Distance(endEffector.position, goal) > pressDistance)
             {
                 MoveFabrikTargetTowards(goal);
-                yield return null; // FABRIK resuelve en LateUpdate
+                yield return null;
             }
 
             step.expectedButton.SimulatePress();
@@ -156,7 +100,6 @@ public class Level2Manager : MonoBehaviour
 
         Vector3 steering = desiredDir;
 
-        // 1) Evitación proactiva para el target
         if (Physics.SphereCast(from, avoidanceRadius, desiredDir, out _, castDist, obstacleMask, QueryTriggerInteraction.Collide))
         {
             Vector3 left = Vectors.Normalize(Vectors.CrossProduct(Vectors.Up(), desiredDir));
@@ -172,12 +115,10 @@ public class Level2Manager : MonoBehaviour
             steering = Vectors.Normalize(desiredDir + side * avoidanceStrength);
         }
 
-        // 2) Empuje de emergencia si el target está rozando
         Vector3 emergency = ComputeEmergencyPush(from);
         if (Vectors.SqrMagnitude(emergency) > 1e-8f)
             steering = Vectors.Normalize(steering + Vectors.Normalize(emergency) * emergencyPushStrength);
 
-        // 3) Anti-cruce de TODA la cadena: si cualquier segmento interseca láseres, empuja fuera
         Vector3 chainPush = ComputeChainPush();
         if (Vectors.SqrMagnitude(chainPush) > 1e-8f)
             steering = Vectors.Normalize(steering + Vectors.Normalize(chainPush) * chainPushStrength);
@@ -204,7 +145,6 @@ public class Level2Manager : MonoBehaviour
         for (int i = 0; i < hits; i++)
         {
             var col = overlapBuffer[i];
-            if (col == null) continue;
 
             Vector3 closest = col.ClosestPoint(pos);
             Vector3 away = pos - closest;
@@ -221,21 +161,15 @@ public class Level2Manager : MonoBehaviour
     private Vector3 ComputeChainPush()
     {
         var joints = fabrik.joints;
-        if (joints == null || joints.Length < 2) return Vector3.zero;
 
         Vector3 total = Vector3.zero;
         int contributions = 0;
 
         for (int i = 0; i < joints.Length - 1; i++)
         {
-            Transform aT = joints[i];
-            Transform bT = joints[i + 1];
-            if (aT == null || bT == null) continue;
+            Vector3 a = joints[i].position;
+            Vector3 b = joints[i + 1].position;
 
-            Vector3 a = aT.position;
-            Vector3 b = bT.position;
-
-            // cápsula del segmento (a->b)
             int hits = Physics.OverlapCapsuleNonAlloc(a, b, chainRadius, overlapBuffer, obstacleMask, QueryTriggerInteraction.Collide);
             if (hits <= 0) continue;
 
@@ -244,9 +178,7 @@ public class Level2Manager : MonoBehaviour
             for (int h = 0; h < hits; h++)
             {
                 Collider col = overlapBuffer[h];
-                if (col == null) continue;
 
-                // empuja alejando desde el punto más cercano al segmento (aprox con mid)
                 Vector3 closest = col.ClosestPoint(mid);
                 Vector3 away = mid - closest;
 
@@ -264,35 +196,26 @@ public class Level2Manager : MonoBehaviour
 
     private void ApplyStep(Step step)
     {
-        if (step.disableLasers != null)
-            for (int i = 0; i < step.disableLasers.Length; i++)
-                if (step.disableLasers[i] != null) step.disableLasers[i].SetActive(false);
+        for (int i = 0; i < step.disableLasers.Length; i++)
+            step.disableLasers[i].SetActive(false);
 
-        if (step.enableLasers != null)
-            for (int i = 0; i < step.enableLasers.Length; i++)
-                if (step.enableLasers[i] != null) step.enableLasers[i].SetActive(true);
+        for (int i = 0; i < step.enableLasers.Length; i++)
+            step.enableLasers[i].SetActive(true);
     }
 
     public void ResetSequence()
     {
         currentStep = 0;
 
-        if (steps != null)
-            for (int i = 0; i < steps.Length; i++)
-                if (steps[i]?.expectedButton != null)
-                    steps[i].expectedButton.ResetState();
+        for (int i = 0; i < steps.Length; i++)
+            steps[i].expectedButton.ResetState();
 
         SetOnlyCurrentButtonPressable(0);
     }
 
     private void SetOnlyCurrentButtonPressable(int stepIndex)
     {
-        if (steps == null) return;
-
         for (int i = 0; i < steps.Length; i++)
-        {
-            var btn = steps[i]?.expectedButton;
-            if (btn != null) btn.AcceptPress = (i == stepIndex);
-        }
+            steps[i].expectedButton.AcceptPress = (i == stepIndex);
     }
 }
