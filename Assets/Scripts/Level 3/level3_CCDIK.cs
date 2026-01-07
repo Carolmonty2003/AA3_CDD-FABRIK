@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 
 public class level3_CCDIK : MonoBehaviour
@@ -32,6 +33,16 @@ public class level3_CCDIK : MonoBehaviour
         ValidateNoJointHierarchyChain();
         InitializeSegmentLengths();
         UpdateSegmentVisuals();
+
+        StartCoroutine(AssignTarget());
+    }
+
+    private IEnumerator AssignTarget()
+    {
+        yield return new WaitForSeconds(0.01f);
+        Debug.Log("Asignando target...");
+        var go = GameObject.Find("Left Target");
+        if (go) target = go.transform;
     }
 
     void InitializeSegmentLengths()
