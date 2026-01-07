@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 
 public class level3_FABRIKIK : MonoBehaviour
@@ -39,6 +40,15 @@ public class level3_FABRIKIK : MonoBehaviour
         ValidateNoJointHierarchyChain();
         InitializeFABRIK();
         UpdateSegmentVisuals();
+        StartCoroutine(AssignTarget());
+    }
+
+    private IEnumerator AssignTarget()
+    {
+        yield return new WaitForSeconds(0.01f);
+        Debug.Log("Asignando target...");
+        var go = GameObject.Find("Right Target");
+            if (go) target = go.transform;
     }
 
     void InitializeFABRIK()
