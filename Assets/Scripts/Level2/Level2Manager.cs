@@ -341,6 +341,9 @@ public class Level2Manager : MonoBehaviour
 
         GUILayout.Label("FABRIK activo: " + fabrik.isActive);
 
+        GUILayout.Label("FABRIK iter/frame: " + fabrik.LastIterations + " / " + fabrik.maxIterations);
+        GUILayout.Label("FABRIK error: " + fabrik.LastDistanceToTarget.ToString("F4"));
+
         if (!done)
             GUILayout.Label("Step: " + (currentStep + 1) + " / " + totalSteps);
         else

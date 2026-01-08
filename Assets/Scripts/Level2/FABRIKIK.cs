@@ -40,6 +40,11 @@ public class FABRIKIK : MonoBehaviour
     [Header("Activación")]
     public bool isActive = true;
 
+    [Header("Debug (solo lectura)")]
+    public int LastIterations { get; private set; }          
+    public float LastDistanceToTarget { get; private set; }
+
+
     [HideInInspector]
     public float totalReach;
 
@@ -93,6 +98,10 @@ public class FABRIKIK : MonoBehaviour
     /// </summary>
     void SolveFABRIK()
     {
+        // Reset debug del frame
+        LastIterations = 0;
+        LastDistanceToTarget = 0f;
+
         // Copiamos posiciones actuales
         for (int i = 0; i < joints.Length; i++)
             positions[i] = joints[i].position;
@@ -100,21 +109,17 @@ public class FABRIKIK : MonoBehaviour
         Vector3 targetPos = target.position;
         basePosition = joints[0].position;
 
-        // Calculamos distancia de la base al target
         float distToTarget = Vectors.Distance(basePosition, targetPos);
 
-        // Si el target está fuera de alcance
         if (distToTarget > totalReach)
         {
             if (clampToReachable)
             {
-                // Acercamos el target al alcance máximo
                 Vector3 direction = Vectors.Normalize(targetPos - basePosition);
                 targetPos = basePosition + direction * totalReach;
             }
             else
             {
-                // Estiramos la cadena hacia el target
                 Vector3 direction = Vectors.Normalize(targetPos - basePosition);
                 positions[0] = basePosition;
 
@@ -122,32 +127,33 @@ public class FABRIKIK : MonoBehaviour
                     positions[i + 1] = positions[i] + direction * lengths[i];
 
                 ApplyPositionsToJoints();
+
+                // Debug
+                LastDistanceToTarget = Vectors.Distance(positions[positions.Length - 1], targetPos);
                 return;
             }
         }
 
-        // Iteraciones FABRIK
         for (int iteration = 0; iteration < maxIterations; iteration++)
         {
-            // Calculamos distancia actual (de la punta al target)
             float distanceToTarget = Vectors.Distance(positions[positions.Length - 1], targetPos);
 
-            // Si estamos suficientemente cerca, terminamos
             if (distanceToTarget < tolerance)
                 break;
 
-            // PASO BACKWARD: Desde el end-effector hacia la base
-            positions[positions.Length - 1] = targetPos;
+            // (vamos a ejecutar esta iteración)
+            LastIterations = iteration + 1;
 
+            // BACKWARD
+            positions[positions.Length - 1] = targetPos;
             for (int i = positions.Length - 2; i >= 0; i--)
             {
                 Vector3 direction = Vectors.Normalize(positions[i] - positions[i + 1]);
                 positions[i] = positions[i + 1] + direction * lengths[i];
             }
 
-            // PASO FORWARD: Desde la base hacia el end-effector
+            // FORWARD
             positions[0] = basePosition;
-
             for (int i = 0; i < positions.Length - 1; i++)
             {
                 Vector3 direction = Vectors.Normalize(positions[i + 1] - positions[i]);
@@ -155,8 +161,10 @@ public class FABRIKIK : MonoBehaviour
             }
         }
 
-        // Aplicamos las posiciones calculadas a los joints
         ApplyPositionsToJoints();
+
+        // Debug final (error tras aplicar)
+        LastDistanceToTarget = Vectors.Distance(positions[positions.Length - 1], targetPos);
     }
 
     /// <summary>
