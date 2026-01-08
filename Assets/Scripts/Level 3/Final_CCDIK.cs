@@ -40,6 +40,16 @@ public class level3_CCDIK : MonoBehaviour
         var go = GameObject.Find("Left Target");
         if (go) target = go.transform;
     }
+    public void SetTarget(Transform newTarget)
+    {
+        Debug.Log("Setting new target for IK");
+        target = newTarget;
+    }
+
+    public void ResetTarget()
+    {
+        target = null;
+    }
 
     void InitializeSegmentLengths()
     {
